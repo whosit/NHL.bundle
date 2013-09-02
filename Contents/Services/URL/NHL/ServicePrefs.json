@@ -3,13 +3,13 @@
         "id":       "gc_username",
         "label":    "Gamecenter username",
         "type":     "text",
-        "default":  "",
+        "default":  ""
     },
     {
         "id":       "gc_password",
         "label":    "Gamecenter password",
         "type":     "text",
         "option":   "hidden",
-        "default":  "",
+        "default":  ""
     }
 ]
