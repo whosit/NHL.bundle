@@ -1,21 +1,24 @@
-from core import *
+def GCLogin(username, password):
+    login_url = 'https://account.nhl.com/app?service=login&siteId=34'
+    data = {
+        'userType'      :   'REGISTERED_FAN',
+        'returnUrl'     :   'http://www.nhl.com/ice/gamecenterlive.htm',
+        'returnOnError' :   'true',
+        'username'      :   username,
+        'password'      :   password
+    }
+    #Log('username:%s' % username)
+    #Log('password:%s' % password)
+    #data['username'] = username
+    #data['password'] = password
+    login_request = HTTP.Request(url=login_url, values=data)
+    result = login_request.content
+    headers = login_request.headers
+    cookies = headers['Set-Cookie']
+    Log(cookies)
+    return cookies
 
-### Gamecenter ###
-
-def GCLogin():
-    handler = urllib2.build_opener(urllib2.HTTPCookieProcessor())
-    urllib2.install_opener(handler)
-    u = Prefs['gc_username']
-    p = Prefs['gc_password']
-    params = urllib.urlencode({"username": u, "password": p})
-    f = handler.open("https://gamecenter.nhl.com/nhlgc/secure/login", params)
-    headers = f.info().headers
-    data = f.read()
-    loginresult = XML.ElementFromString(data).find("./code").text
-    f.close()
-    return (handler, headers, loginresult)
-
-
+'''
 def GCArchives(handler, params, servlet="archives"):
     # Returns XML for GC archives
     params = urllib.urlencode(dict({"isFlex": "true"}.items() + params.items())) # Add params to the "isFlex"
@@ -105,3 +108,4 @@ def PlayGC(sender, url=None):
 
 def DecryptGC(url, cookies):
     return Helper.Run('decrypt_gc', url, cookies) 
+'''
