@@ -22,7 +22,7 @@ def ValidatePrefs():
     ## do some checks and return a
     ## message container
     if( Prefs['gc_username'] and Prefs['gc_password'] ):
-        cookies = Login(Prefs['gc_username'], Prefs['gc_password'])
+        Dict['cookies'] = Login(Prefs['gc_username'], Prefs['gc_password'])
         Log("Login succeeded")
     else:
         Log("Login failed")
@@ -41,6 +41,33 @@ def MainMenu():
         
     return oc
 
+@route(PREFIX + '/')
+def GetXML(url, values):
+    xml_data = None
+    for i in range(1,3):
+        Log("Attempting to download XML: Try #%d" % i)
+        #Header for XML Request
+        headers = { 
+            'Host' : 'gamecenter.nhl.com',
+            'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)',
+            'Accept' : '*/*',
+            'Referer' : 'http://gamecenter.nhl.com/nhlgc/console.jsp',
+            'Accept-Language' : 'de-de',
+            'Accept-Encoding' : 'gzip, deflate',
+            'Cookie' : Dict['cookies'],
+            'Connection' : 'keep-alive',
+            'Content-Type' : 'application/x-www-form-urlencoded'
+            }
+        request = HTTP.Request(url, headers=header, values=values)
+        if "<code>noaccess</code>" in request.content:
+            Log("No access to XML.")
+            Dict['cookies'] = Login(Prefs['gc_username'], Prefs['gc_password'])
+        else:
+            xml_data = XML.ElementFromString(request.content.strip())
+            return xml_data
+    if not xml_data:
+        Log("Failed to retrieve requested XML.")
+        return ObjectContainer(header="Error", message="Failed to retrieve necessary data. Please confirm login credentials.")
 
 #Helpful code from the XBMC NHL-GameCenter Add-on#    
 '''
