@@ -57,8 +57,9 @@ def MediaObjectsForURL(url):
 	for bitrate in BITRATES:
 		media_objects.append(
 			MediaObject(
-				parts=[PartObject(key=HTTPLiveStreamURL(Callback(PlayHLS, url=url, bitrate=bitrate)))],
-				bitrate = bitrate
+				parts=[PartObject(key=HTTPLiveStreamURL(Callback(PlayHLS, url=url, bitrate=bitrate['bitrate'])))],
+				bitrate = bitrate['bitrate'],
+				video_resolution = bitrate['res']
 			)
 		)
 	return media_objects
