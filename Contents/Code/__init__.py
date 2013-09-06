@@ -2,6 +2,7 @@
 
 Login = SharedCodeService.gamecenter.GCLogin
 
+ARCHIVE_XML = 'http://gamecenter.nhl.com/nhlgc/servlets/allarchives'
 ####################################################################################################
 PREFIX  = "/video/nhl"
 NAME    = 'NHL'
@@ -16,7 +17,7 @@ def Start():
     DirectoryObject.thumb = R(NHL)
     DirectoryObject.art = R(ART)
 
-    HTTP.Headers['User-agent'] = 'Mozilla/5.0 (iPad; U; CPU OS 3_2_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B500 Safari/531.21.10'
+    #HTTP.Headers['User-agent'] = 'Mozilla/5.0 (iPad; U; CPU OS 3_2_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B500 Safari/531.21.10'
 
 def ValidatePrefs():
     ## do some checks and return a
@@ -34,15 +35,79 @@ def ValidatePrefs():
 @handler(PREFIX, NAME)
 def MainMenu():    
     oc = ObjectContainer()
-    
-    #dir.Append(Function(DirectoryItem(NHLMenu, title="NHL.com", thumb=R(NHL), art=R(ART))))
+    oc.add(DirectoryObject(key=Callback(LiveGames), title="Live Games"))
+    oc.add(DirectoryObject(key=Callback(CondensedGames), title="Condensed Games"))
+    oc.add(DirectoryObject(key=Callback(ArchiveGames), title="Archived Games"))
+    oc.add(DirectoryObject(key=Callback(ClassicGames), title="Classic Games"))
     #dir.Append(Function(DirectoryItem(GCMainMenu, title="NHL Gamecenter Live", thumb=R(NHL), art=R(ART))))
     oc.add(PrefsObject(title="Preferences"))
         
     return oc
 
-@route(PREFIX + '/')
-def GetXML(url, values):
+@route(PREFIX + '/live')
+def LiveGames():
+    return
+
+@route(PREFIX + '/archive')
+def ArchiveGames():
+    oc = ObjectContainer(title2="Archived Games")
+    data = GetXML(values={'date' : 'true', 'isFlex' : 'true'})
+    seasons = data.xpath('//season')
+    seasons.reverse()
+    current_season = seasons[0].get('id')
+    current_month = seasons[0].xpath('./g')[-1].text.split('/')[0]
+    oc.add(DirectoryObject(key=Callback(Games, season=current_season, month=current_month, condensed=True), title="Most Recent Games"))
+    for season in seasons:
+	if int(season.get('id')) < 2010:
+	    ''' links for seasons older than this don't work, so we'll ignore them '''
+	    continue
+	oc.add(DirectoryObject(key=Callback(Months, season), title="%s Season" % season))
+    return oc
+
+@route(PREFIX + '/condensed')
+def CondensedGames():
+    return
+
+@route(PREFIX + '/classic')
+def ClassicGames():
+    return
+
+@route(PREFIX + '/months')
+def Months(season):
+    return
+
+@route(PREFIX + '/games', condensed=bool)
+def Games(season, month, condensed=False):
+    oc = ObjectContainer(title1="%s/%s" % (season, month), title2="Games")
+    if condensed:
+	values = {'season' : season, 'isFlex' : 'true', 'month' : month, 'condensed' : 'true'}
+    else:
+	values = {'season' : season, 'isFlex' : 'true', 'month' : month}
+	Log(values)
+    data = GetXML(values=values, url='http://gamecenter.nhl.com/nhlgc/servlets/archives')
+    games = data.xpath('//game')
+    
+    for game in games:
+        game_id = game.xpath("//id")[0].text
+        date = Datetime.ParseDate(game.xpath("//date")[0].text).date()
+	gctype = game.xpath('//type')[0].text
+	homeTeam = game.xpath("//homeTeam")[0].text
+	homeGoals = game.xpath("//homeGoals")[0].text
+        awayTeam = game.xpath("//awayTeam")[0].text
+	awayGoals = game.xpath("//awayGoals")[0].text
+	result = game.xpath("//result")[0].text
+	
+        title = "%s at %s" % (awayTeam, homeTeam)
+	url = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s03%s' % (season, game_id)
+	if Prefs['score_summary']:
+	    summary = "%s - %s %s" % (awayGoals, homeGoals, result)
+	else:
+	    summary = None
+	oc.add(VideoClipObject(url=url, title=title, summary=summary))
+    return oc
+
+@route(PREFIX + '/getxml', values=dict)
+def GetXML(values, url=ARCHIVE_XML):
     xml_data = None
     for i in range(1,3):
         Log("Attempting to download XML: Try #%d" % i)
@@ -58,11 +123,12 @@ def GetXML(url, values):
             'Connection' : 'keep-alive',
             'Content-Type' : 'application/x-www-form-urlencoded'
             }
-        request = HTTP.Request(url, headers=header, values=values)
+        request = HTTP.Request(url, headers=headers, values=values)
         if "<code>noaccess</code>" in request.content:
             Log("No access to XML.")
             Dict['cookies'] = Login(Prefs['gc_username'], Prefs['gc_password'])
         else:
+	    Log(request.content.strip())
             xml_data = XML.ElementFromString(request.content.strip())
             return xml_data
     if not xml_data:
