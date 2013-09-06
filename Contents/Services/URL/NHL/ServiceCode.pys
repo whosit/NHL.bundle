@@ -1,3 +1,8 @@
+from gamecenter import GCLogin as Login
+
+RE_GAME = Regex('\?id=(?P<season>[0-9]{4})(?P<gtype>[0-9]{2})(?P<game_id>[0-9]{4})')
+
+GAME_XML = 'http://gamecenter.nhl.com/nhlgc/servlets/game'
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -5,22 +10,122 @@ def NormalizeURL(url):
 
 ####################################################################################################
 def MetadataObjectForURL(url):
-
+	game = GetXML(url).xpath('//game')[0]
+	date = Datetime.ParseDate(game.xpath("./date")[0].text).date()
+	homeTeam = game.xpath("./homeTeam")[0].text
+	homeGoals = game.xpath("./homeGoals")[0].text
+        awayTeam = game.xpath("./awayTeam")[0].text
+	awayGoals = game.xpath("./awayGoals")[0].text
+	result = game.xpath("./result")[0].text
+	
+        title = "%s at %s - %s" % (awayTeam, homeTeam, date)
+	if Prefs['score_summary']:
+	    summary = "%s - %s %s" % (awayGoals, homeGoals, result)
+	else:
+	    summary = None
+	if '#HOME' in url:
+		summary += "\nHome Feed"
+	elif '#AWAY' in url:
+		summary += "\nAway  Feed"
+	else:
+		pass
+	
 	return VideoClipObject(
-		title = 'NHL Game Center'
+		title = title,
+		summary=summary,
+		originally_available_at=date,
+		thumb = R('icon-default.png')
 	)
 
 ####################################################################################################
 def MediaObjectsForURL(url):
-
-	return []
+	values = GetValues(url)
+	if int(values['season']) >= 2012:
+		BITRATES = [
+			{'bitrate':'4500', 'res':'720'},
+			{'bitrate':'3000', 'res':'720'},
+			{'bitrate':'1600', 'res':'540'},
+			{'bitrate':'800', 'res':'360'}
+			]
+	else:
+		BITRATES = [
+			{'bitrate':'3000', 'res':'720'},
+			{'bitrate':'1600', 'res':'540'},
+			{'bitrate':'800', 'res':'360'}
+			]
+	media_objects = []
+	for bitrate in BITRATES:
+		media_objects.append(
+			MediaObject(
+				parts=[PartObject(key=HTTPLiveStreamURL(Callback(PlayHLS, url=url, bitrate=bitrate)))],
+				bitrate = bitrate
+			)
+		)
+	return media_objects
 
 ####################################################################################################
-def PlayVideo(url):
-	return
+def PlayHLS(url, bitrate):
+	game = GetXML(url).xpath('//game')[0]
+	values = GetValues(url)
+	playpath = game.xpath('.//publishPoint')[0].text
+	playpath_part1 = playpath[37:][:-49]
+	playpath_part2 = playpath[-45:]
+	m3u8_url = "http://nhl.cdn.neulion.net/%s/v1/playlist_%s.m3u8" % (playpath_part1[4:], bitrate)
+        m3u8_url = m3u8_url.replace('/pc/', '/ced/')
+	
+	#Fix for 2012-2013 season
+        if int(values['season']) >= 2012:
+		m3u8_url = m3u8_url.replace('http://nhl.cdn.neulion.net/', 'http://nlds150.cdnak.neulion.com/')
+                m3u8_url = m3u8_url.replace('s/nhlmobile/vod/nhl/', 'nlds_vod/nhl/vod/')
+		m3u8_url = m3u8_url.replace('/v1/playlist', '')
+		m3u8_url = m3u8_url.replace('.m3u8', '_ced.mp4.m3u8')
+		
+		#Fix for early games in the season
+                m3u8_url = m3u8_url.replace('condensed_ced', 'condensed_1_ced')
+                m3u8_url = m3u8_url.replace('condensed_4500', 'condensed_1_4500')
+                m3u8_url = m3u8_url.replace('condensed_3000', 'condensed_1_3000')
+                m3u8_url = m3u8_url.replace('condensed_1600', 'condensed_1_1600')
+                m3u8_url = m3u8_url.replace('condensed_800', 'condensed_1_800')
+		
+		#Fix for some streams
+                m3u8_url = m3u8_url.replace('s/as3/', '')
+
+	if "#AWAY" in url:
+		m3u8_url = m3u8_url.replace('_h_', '_a_')
+
+	return Redirect(m3u8_url)
+
+
+####################################################################################################
+def GetValues(url):
+	url_values = RE_GAME.search(url).groupdict()
+	values = {'season' : url_values['season'], 'type' : int(url_values['gtype']), 'gid' : url_values['game_id'], 'isFlex' : 'true'}
+	return values
+####################################################################################################
+def GetXML(url):
+	values = GetValues(url)
+	xml_data = None
+	cookies = Login(Prefs['gc_username'], Prefs['gc_password'])
+	#Header for XML Request
+        headers = {
+		'Host' : 'gamecenter.nhl.com',
+		'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)',
+		'Accept' : '*/*',
+		'Referer' : 'http://gamecenter.nhl.com/nhlgc/console.jsp',
+		'Accept-Language' : 'de-de',
+		'Accept-Encoding' : 'gzip, deflate',
+		'Cookie' : cookies,
+		'Connection' : 'keep-alive',
+		'Content-Type' : 'application/x-www-form-urlencoded'
+		}
+        request = HTTP.Request(GAME_XML, headers=headers, values=values)
+        xml_data = XML.ElementFromString(request.content.strip())
+        return xml_data
 
 ####################################################################################################
 def TestURLs():
 
 	test_urls = []
 	return test_urls
+
+   
