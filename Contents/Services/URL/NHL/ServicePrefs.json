@@ -1,15 +1,21 @@
 [
     {
         "id":       "gc_username",
-        "label":    "Gamecenter username",
+        "label":    "Username",
         "type":     "text",
         "default":  ""
     },
     {
         "id":       "gc_password",
-        "label":    "Gamecenter password",
+        "label":    "Password",
         "type":     "text",
         "option":   "hidden",
         "default":  ""
+    },
+    {
+        "id":       "score_summary",
+        "label":    "Show scores in summary",
+        "type":     "bool",
+        "default":  "false"
     }
 ]
