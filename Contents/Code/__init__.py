@@ -1,8 +1,17 @@
+import calendar
+
 # Borrows heavily from the XBMC NHL GameCenter Add-on by Carb0 - http://forum.xbmc.org/showthread.php?tid=118853
 
 Login = SharedCodeService.gamecenter.GCLogin
 
-ARCHIVE_XML = 'http://gamecenter.nhl.com/nhlgc/servlets/allarchives'
+ARCHIVE_XML	= 'http://gamecenter.nhl.com/nhlgc/servlets/allarchives'
+GAMES_XML 	= 'http://gamecenter.nhl.com/nhlgc/servlets/archives'
+VAULT_XML 	= 'http://nhl.cdn.neulion.net/u/nhlgc/flex/vault.xml'
+
+ONE_HOUR	= 60 * 60
+ONE_DAY 	= ONE_HOUR * 24
+ONE_WEEK	= ONE_DAY * 7
+ONE_MONTH	= ONE_DAY * 30
 ####################################################################################################
 PREFIX  = "/video/nhl"
 NAME    = 'NHL'
@@ -16,8 +25,7 @@ def Start():
     ObjectContainer.title1 = NAME
     DirectoryObject.thumb = R(NHL)
     DirectoryObject.art = R(ART)
-
-    #HTTP.Headers['User-agent'] = 'Mozilla/5.0 (iPad; U; CPU OS 3_2_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B500 Safari/531.21.10'
+    VideoClipObject.thumb= R(ICON)
 
 def ValidatePrefs():
     ## do some checks and return a
@@ -35,46 +43,57 @@ def ValidatePrefs():
 @handler(PREFIX, NAME)
 def MainMenu():    
     oc = ObjectContainer()
-    oc.add(DirectoryObject(key=Callback(LiveGames), title="Live Games"))
-    oc.add(DirectoryObject(key=Callback(CondensedGames), title="Condensed Games"))
+    #oc.add(DirectoryObject(key=Callback(LiveGames), title="Live Games"))
+    oc.add(DirectoryObject(key=Callback(ArchiveGames, condensed=True), title="Condensed Games"))
     oc.add(DirectoryObject(key=Callback(ArchiveGames), title="Archived Games"))
-    oc.add(DirectoryObject(key=Callback(ClassicGames), title="Classic Games"))
-    #dir.Append(Function(DirectoryItem(GCMainMenu, title="NHL Gamecenter Live", thumb=R(NHL), art=R(ART))))
+    #oc.add(DirectoryObject(key=Callback(ClassicGames), title="Classic Games"))
     oc.add(PrefsObject(title="Preferences"))
-        
     return oc
 
 @route(PREFIX + '/live')
 def LiveGames():
     return
 
-@route(PREFIX + '/archive')
-def ArchiveGames():
+@route(PREFIX + '/archive', condensed=bool)
+def ArchiveGames(condensed=False):
     oc = ObjectContainer(title2="Archived Games")
-    data = GetXML(values={'date' : 'true', 'isFlex' : 'true'})
+    data = GetXML(url=ARCHIVE_XML, values={'date' : 'true', 'isFlex' : 'true'}, cache_length=ONE_DAY)
     seasons = data.xpath('//season')
     seasons.reverse()
     current_season = seasons[0].get('id')
     current_month = seasons[0].xpath('./g')[-1].text.split('/')[0]
-    oc.add(DirectoryObject(key=Callback(Games, season=current_season, month=current_month, condensed=True), title="Most Recent Games"))
-    for season in seasons:
-	if int(season.get('id')) < 2010:
+    oc.add(DirectoryObject(key=Callback(Games, season=current_season, month=current_month, condensed=condensed), title="Most Recent Games"))
+    for entry in seasons:
+	season = entry.get('id')
+	if int(season) < 2010:
 	    ''' links for seasons older than this don't work, so we'll ignore them '''
 	    continue
-	oc.add(DirectoryObject(key=Callback(Months, season), title="%s Season" % season))
+	oc.add(DirectoryObject(key=Callback(Months, season=season), title="%s Season" % season))
     return oc
-
-@route(PREFIX + '/condensed')
-def CondensedGames():
-    return
 
 @route(PREFIX + '/classic')
 def ClassicGames():
-    return
+    oc = ObjectContainer(title2="Classic Games")
+    #content = HTTP.Request(url=VAULT_XML, cacheTime=ONE_WEEK).content
+    #Log(content)
+    #data = XML.ElementFromString(content)
+    data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
+    
+    return oc
 
-@route(PREFIX + '/months')
-def Months(season):
-    return
+@route(PREFIX + '/months', condensed=bool)
+def Months(season, condensed=False):
+    oc = ObjectContainer(title1="Archived Games", title2="%s Season" % season)
+    data = GetXML(url=ARCHIVE_XML, values={'date' : 'true', 'isFlex' : 'true'}, cache_length=ONE_DAY)
+    season_dates = data.xpath('//season[@id="'+season+'"]')[0].xpath('./g')
+    months = []
+    for entry in reversed(season_dates):
+	month = entry.text.split('/')[0]
+	if not month in months:
+	    months.append(month)
+	    title = "%s Games" % calendar.month_name[int(month)]
+	    oc.add(DirectoryObject(key=Callback(Games, season=season, month=month, condensed=condensed), title=title))
+    return oc
 
 @route(PREFIX + '/games', condensed=bool)
 def Games(season, month, condensed=False):
@@ -84,30 +103,38 @@ def Games(season, month, condensed=False):
     else:
 	values = {'season' : season, 'isFlex' : 'true', 'month' : month}
 	Log(values)
-    data = GetXML(values=values, url='http://gamecenter.nhl.com/nhlgc/servlets/archives')
+    data = GetXML(url=GAMES_XML, values=values, cache_length=ONE_HOUR)
     games = data.xpath('//game')
     
     for game in games:
-        game_id = game.xpath("//id")[0].text
-        date = Datetime.ParseDate(game.xpath("//date")[0].text).date()
-	gctype = game.xpath('//type')[0].text
-	homeTeam = game.xpath("//homeTeam")[0].text
-	homeGoals = game.xpath("//homeGoals")[0].text
-        awayTeam = game.xpath("//awayTeam")[0].text
-	awayGoals = game.xpath("//awayGoals")[0].text
-	result = game.xpath("//result")[0].text
+        game_id = game.xpath("./id")[0].text
+        date = Datetime.ParseDate(game.xpath("./date")[0].text).date()
+	gctype = game.xpath('./type')[0].text
+	homeTeam = game.xpath("./homeTeam")[0].text
+	homeGoals = game.xpath("./homeGoals")[0].text
+        awayTeam = game.xpath("./awayTeam")[0].text
+	awayGoals = game.xpath("./awayGoals")[0].text
+	result = game.xpath("./result")[0].text
 	
-        title = "%s at %s" % (awayTeam, homeTeam)
+        title = "%s at %s - %s" % (awayTeam, homeTeam, date)
 	url = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s03%s' % (season, game_id)
 	if Prefs['score_summary']:
 	    summary = "%s - %s %s" % (awayGoals, homeGoals, result)
 	else:
 	    summary = None
-	oc.add(VideoClipObject(url=url, title=title, summary=summary))
+	oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
     return oc
 
-@route(PREFIX + '/getxml', values=dict)
-def GetXML(values, url=ARCHIVE_XML):
+@route(PREFIX + '/homeoraway')
+def HomeOrAway(url, title, summary, date):
+    oc = ObjectContainer(title2="Choose Feed")
+    date = Datetime.ParseDate(date).date()
+    oc.add(VideoClipObject(url=url+"#HOME", title="Home Feed", summary="%s\n%s" % (title, summary), originally_available_at=date))
+    oc.add(VideoClipObject(url=url+"#AWAY", title="Away Feed", summary="%s\n%s" % (title, summary), originally_available_at=date))
+    return oc
+
+@route(PREFIX + '/getxml', values=dict, cache_length=int)
+def GetXML(url, values, cache_length=ONE_DAY):
     xml_data = None
     for i in range(1,3):
         Log("Attempting to download XML: Try #%d" % i)
