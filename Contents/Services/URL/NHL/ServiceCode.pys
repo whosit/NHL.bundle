@@ -65,6 +65,7 @@ def MediaObjectsForURL(url):
 	return media_objects
 
 ####################################################################################################
+@indirect
 def PlayHLS(url, bitrate):
 	game = GetXML(url).xpath('//game')[0]
 	values = GetValues(url)
@@ -93,8 +94,8 @@ def PlayHLS(url, bitrate):
 
 	if "#AWAY" in url:
 		m3u8_url = m3u8_url.replace('_h_', '_a_')
-
-	return Redirect(m3u8_url)
+	
+	return IndirectResponse(VideoClipObject, key=m3u8_url)
 
 
 ####################################################################################################
