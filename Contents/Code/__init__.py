@@ -126,6 +126,8 @@ def Games(season, month, condensed=False):
 	
         title = "%s at %s - %s" % (awayTeam, homeTeam, date)
 	url = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s0%s%s' % (season, gctype, game_id)
+	if condensed:
+	    url = url + "#CONDENSED"
 	if Prefs['score_summary']:
 	    summary = "%s - %s %s" % (awayGoals, homeGoals, result)
 	else:
