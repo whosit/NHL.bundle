@@ -4,14 +4,22 @@ import calendar
 
 Login = SharedCodeService.gamecenter.GCLogin
 
-ARCHIVE_XML	= 'http://gamecenter.nhl.com/nhlgc/servlets/allarchives'
-GAMES_XML 	= 'http://gamecenter.nhl.com/nhlgc/servlets/archives'
-VAULT_XML 	= 'http://nhl.cdn.neulion.net/u/nhlgc/flex/vault.xml'
+ARCHIVE_XML     = 'http://gamecenter.nhl.com/nhlgc/servlets/allarchives'
+GAMES_XML       = 'http://gamecenter.nhl.com/nhlgc/servlets/archives'
+VAULT_XML       = 'http://nhl.cdn.neulion.net/u/nhlgc/flex/vault.xml'
 
-ONE_HOUR	= 60 * 60
-ONE_DAY 	= ONE_HOUR * 24
-ONE_WEEK	= ONE_DAY * 7
-ONE_MONTH	= ONE_DAY * 30
+VAULT_NAMESPACES = {
+    "xmlns" 	: 	"urn:schemas-microsoft-com:office:spreadsheet",
+    "o" 	: 	"urn:schemas-microsoft-com:office:office",
+    "x"		:	"urn:schemas-microsoft-com:office:excel",
+    "ss"	:	"urn:schemas-microsoft-com:office:spreadsheet",
+    "html"	:	"http://www.w3.org/TR/REC-html40"
+    }
+
+ONE_HOUR        = 60 * 60
+ONE_DAY         = ONE_HOUR * 24
+ONE_WEEK        = ONE_DAY * 7
+ONE_MONTH       = ONE_DAY * 30
 ####################################################################################################
 PREFIX  = "/video/nhl"
 NAME    = 'NHL'
@@ -64,30 +72,99 @@ def ArchiveGames(condensed=False):
     current_month = seasons[0].xpath('./g')[-1].text.split('/')[0]
     oc.add(DirectoryObject(key=Callback(Games, season=current_season, month=current_month, condensed=condensed), title="Most Recent Games"))
     for entry in seasons:
-	season = entry.get('id')
-	if int(season) < 2010:
-	    ''' links for seasons older than this don't work, so we'll ignore them '''
-	    continue
-	oc.add(DirectoryObject(key=Callback(Months, season=season), title="%s Season" % season))
+        season = entry.get('id')
+        if int(season) < 2010:
+            ''' links for seasons older than this don't work, so we'll ignore them '''
+            continue
+        oc.add(DirectoryObject(key=Callback(Months, season=season), title="%s Season" % season))
     return oc
 
 @route(PREFIX + '/classic')
 def ClassicGames():
     oc = ObjectContainer(title2="Classic Games")
     filters = ['Decade', 'Team', 'Key Players', 'Category']
-    oc.add(ObjectContainer(key=Callback(UnfilteredClassics), title="All Classic Games"))
+    oc.add(DirectoryObject(key=Callback(UnfilteredClassics), title="All Classic Games"))
     for option in filters:
-	oc.add(ObjectContainer(key=Callback(FilteredClassics, option=option), title="Filter by %s" % option))
+        oc.add(DirectoryObject(key=Callback(FilteredClassics, option=option), title="Filter by %s" % option))
     return oc
+
+'''
+Class Games XML Map
+Row => Game
+Cell[0]/Data[0].text => date
+Cell[1]/Data[0].text + Cell[2]/Data[0].text => Team1
+Cell[3]/Data[0].text => Team1 Score
+Cell[4]/Data[0].text + Cell[5]/Data[0].text => Team2
+Cell[6]/Data[0].text => Team2 Score
+Cell[7]/Data[0].text => title
+Cell[8]/Data[0].text => summary
+Cell[9]/Data[0].text => category
+Cell[10]Data[0].text => ???
+Cell[11]Data[0].text => lo_res feed
+Cell[12]Data[0].text => hi_res feed
+Cell[13]/Data[0].text => key player(s)
+'''
 
 @route(PREFIX + '/unfilteredclassics')
 def UnfilteredClassics():
     data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
     return
 
-@route(PREFIX + '/unfilteredclassics')
+@route(PREFIX + '/filteredclassics')
 def FilteredClassics(option):
+    oc = ObjectContainer(title2="Classic Games")
     data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
+    Decades = [
+	{"title" : "1960s", "range" : ["1960","1969"]},
+	{"title" : "1970s", "range" : ["1970","1979"]},
+	{"title" : "1980s", "range" : ["1980","1989"]},
+	{"title" : "1990s", "range" : ["1990","1999"]},
+	{"title" : "2000s", "range" : ["2000","2013"]}
+	]
+    if option == "Decade":
+	for decade in Decades:
+	    oc.add(DirectoryObject(key=Callback(ClassicsDecades, decade=decade['range']), title=decade['title']))
+    elif option == "Team":
+	teams = []
+	for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
+	    team_city = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[1].text
+	    team_name = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[2].text
+	    team = "%s %s" % (team_city, team_name)
+	    if team not in teams:
+		teams.append(team)
+		oc.add(DirectoryObject(key=Callback(ClassicsTeams, team=team), title=team))
+    elif option == "Key Players":
+	players = []
+	for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
+	    for entry in game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[13].text.split(','):
+		player = entry.strip()
+		if player not in players:
+		    players.append(player)
+		    oc.add(DirectoryObject(key=Callback(ClassicsPlayers, player=player), title=player))
+    elif option == "Category":
+	categories = []
+	for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
+	    category = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[9].text
+	    if category not in categories:
+	        categories.append(category)
+		oc.add(DirectoryObject(key=Callback(ClassicsCategories, category=category), title=category))
+    oc.objects.sort(key = lambda obj: obj.title)
+    return oc
+
+@route(PREFIX + '/classicsdecades', decade=list)
+def ClassicsDecades(decade):
+    return
+
+@route(PREFIX + '/classicsteams')
+def ClassicsTeams(team):
+    return
+
+@route(PREFIX + '/classicsplayers')
+def ClassicsPlayers(player):
+    return
+
+@route(PREFIX + '/classicscategories')
+def ClassicsCategories(category):
     return
 
 @route(PREFIX + '/months', condensed=bool)
@@ -97,42 +174,42 @@ def Months(season, condensed=False):
     season_dates = data.xpath('//season[@id="'+season+'"]')[0].xpath('./g')
     months = []
     for entry in reversed(season_dates):
-	month = entry.text.split('/')[0]
-	if not month in months:
-	    months.append(month)
-	    title = "%s Games" % calendar.month_name[int(month)]
-	    oc.add(DirectoryObject(key=Callback(Games, season=season, month=month, condensed=condensed), title=title))
+        month = entry.text.split('/')[0]
+        if not month in months:
+            months.append(month)
+            title = "%s Games" % calendar.month_name[int(month)]
+            oc.add(DirectoryObject(key=Callback(Games, season=season, month=month, condensed=condensed), title=title))
     return oc
 
 @route(PREFIX + '/games', condensed=bool)
 def Games(season, month, condensed=False):
     oc = ObjectContainer(title1="%s/%s" % (season, month), title2="Games")
     if condensed:
-	values = {'season' : season, 'isFlex' : 'true', 'month' : month, 'condensed' : 'true'}
+        values = {'season' : season, 'isFlex' : 'true', 'month' : month, 'condensed' : 'true'}
     else:
-	values = {'season' : season, 'isFlex' : 'true', 'month' : month}
+        values = {'season' : season, 'isFlex' : 'true', 'month' : month}
     data = GetXML(url=GAMES_XML, values=values, cache_length=ONE_HOUR)
     games = data.xpath('//game')
     
     for game in games:
         game_id = game.xpath("./id")[0].text
         date = Datetime.ParseDate(game.xpath("./date")[0].text).date()
-	gctype = game.xpath('./type')[0].text
-	homeTeam = game.xpath("./homeTeam")[0].text
-	homeGoals = game.xpath("./homeGoals")[0].text
+        gctype = game.xpath('./type')[0].text
+        homeTeam = game.xpath("./homeTeam")[0].text
+        homeGoals = game.xpath("./homeGoals")[0].text
         awayTeam = game.xpath("./awayTeam")[0].text
-	awayGoals = game.xpath("./awayGoals")[0].text
-	result = game.xpath("./result")[0].text
-	
+        awayGoals = game.xpath("./awayGoals")[0].text
+        result = game.xpath("./result")[0].text
+        
         title = "%s at %s - %s" % (awayTeam, homeTeam, date)
-	url = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s0%s%s' % (season, gctype, game_id)
-	if condensed:
-	    url = url + "#CONDENSED"
-	if Prefs['score_summary']:
-	    summary = "%s - %s %s" % (awayGoals, homeGoals, result)
-	else:
-	    summary = None
-	oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
+        url = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s0%s%s' % (season, gctype, game_id)
+        if condensed:
+            url = url + "#CONDENSED"
+        if Prefs['score_summary']:
+            summary = "%s - %s %s" % (awayGoals, homeGoals, result)
+        else:
+            summary = None
+        oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
     return oc
 
 @route(PREFIX + '/homeoraway')
