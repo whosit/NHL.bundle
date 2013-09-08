@@ -105,10 +105,27 @@ Cell[12]Data[0].text => hi_res feed
 Cell[13]/Data[0].text => key player(s)
 '''
 
-@route(PREFIX + '/unfilteredclassics')
-def UnfilteredClassics():
+@route(PREFIX + '/unfilteredclassics', offset=int)
+def UnfilteredClassics(offset=0):
+    oc = ObjectContainer(title2="Classic Games")
     data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
-    return
+    i=offset
+    new_offset = offset + 20
+    while i < new_offset:
+	game = data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)[i]
+	#date = Datetime.ParseDate(game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[0].text).date()
+	date = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[0].text
+	title = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[7].text
+	summary = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[8].text
+	thumb = 'http://nhl.cdn.neulion.net/u/nhl/thumbs/vault/' + game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text[:-3] + 'jpg'
+	Log(thumb)
+	lo_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text
+	hi_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[12].text
+	oc.add(CreateClassicVideo(title=title, summary=summary, thumb=thumb, date=date, lo_res=lo_res, hi_res=hi_res))
+	i += 1
+    if offset < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
+	oc.add(NextPageObject(key=Callback(UnfilteredClassics, offset=new_offset)))
+    return oc
 
 @route(PREFIX + '/filteredclassics')
 def FilteredClassics(option):
@@ -166,6 +183,64 @@ def ClassicsPlayers(player):
 @route(PREFIX + '/classicscategories')
 def ClassicsCategories(category):
     return
+
+@route(PREFIX + '/classicsvideo')
+def CreateClassicVideo(title, summary, thumb, date, lo_res, hi_res, include_container=False):
+    videoclip_obj = VideoClipObject(
+	key = Callback(CreateClassicVideo, title=title, summary=summary, thumb=thumb, date=date,
+	    lo_res=lo_res, hi_res=hi_res, include_container=True),
+	rating_key = thumb,
+	title = title,
+	thumb=thumb,
+	summary = summary,
+	originally_available_at = Datetime.ParseDate(date.replace("+"," ")).date(),
+	items = [
+	    MediaObject(
+	        parts = [
+	        PartObject(
+		    key=RTMPVideoURL(Callback(PlayClassicVideo, path=hi_res)),
+		    streams=[AudioStreamObject(language_code=Locale.Language.English)]
+		)
+	    ],
+	    video_codec = VideoCodec.H264,
+	    audio_codec = AudioCodec.AAC,
+	    video_resolution = '540',
+	    bitrate = '1600',
+	    optimized_for_streaming = True
+	    ),
+	    MediaObject(
+	        parts = [
+	        PartObject(
+		    key=RTMPVideoURL(Callback(PlayClassicVideo, path=lo_res)),
+		    streams=[AudioStreamObject(language_code=Locale.Language.English)]
+		    )
+		],
+	    video_codec = VideoCodec.H264,
+	    audio_codec = AudioCodec.AAC,
+	    video_resolution = '360',
+	    bitrate = '800',
+	    optimized_for_streaming = True
+	    )
+	]
+    )
+
+    if include_container:
+	return ObjectContainer(objects=[videoclip_obj])
+    else:
+	return videoclip_obj
+
+@indirect
+@route(PREFIX + '/playclassicvideo')
+def PlayClassicVideo(path):
+    values = {'isFlex' : 'true', 'type' : 'fvod', 'path' : 'rtmp://neulionms.fcod.llnwd.net/a5306/e4/mp4:s/nhl/svod/flv/vault/%s' % path}
+    data = GetXML(url='http://gamecenter.nhl.com/nhlgc/servlets/encryptvideopath', values=values) #, referer='http://e1.cdnl3.neulion.com/nhlgc/player/nhlgc/console.swf'
+    playpath = 'mp4:' + data.xpath('//path')[0].text.split('mp4:')[1]
+    #Get rtmp url
+    #playpath = xml.getElementsByTagName('path')[0].childNodes[0].nodeValue.replace('rtmp://cdncon.fcod.llnwd.net/a277/e4/','')
+    rtmp_url = 'rtmp://neulionms.fcod.llnwd.net/a5306/e4/'
+    #app = 'a5306/e4'
+    
+    return IndirectResponse(VideoClipObject, key=RTMPVideoURL(url=rtmp_url, clip=playpath))
 
 @route(PREFIX + '/months', condensed=bool)
 def Months(season, condensed=False):
@@ -230,17 +305,33 @@ def GetXML(url, values, cache_length=ONE_DAY):
             'Host' : 'gamecenter.nhl.com',
             'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)',
             'Accept' : '*/*',
-            'Referer' : 'http://gamecenter.nhl.com/nhlgc/console.jsp',
+            'Referer' : referer,
             'Accept-Language' : 'de-de',
             'Accept-Encoding' : 'gzip, deflate',
             'Cookie' : Dict['cookies'],
             'Connection' : 'keep-alive',
             'Content-Type' : 'application/x-www-form-urlencoded'
             }
-        request = HTTP.Request(url, headers=headers, values=values)
+	'''
+	Proxy-Connection: keep-alive
+	Content-Length: 207
+	Origin: http://e1.cdnl3.neulion.com
+	User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.57 Safari/537.36
+	Accept-Encoding: gzip,deflate,sdch
+	Accept-Language: en-US,en;q=0.8
+	Cookie: JSESSIONID=32150~4E7EF3A60DDDF59D17C45CD3FABBE1BA; __qca=P0-149059437-1378134316812; gig3pc=1; kick_sess=nhl-2413137|1378127606|1378690987|405fd20a9c1fc18dd6ad1d806fb5d61594d21f71; glt_2_pd9mRZHRYIukd6DpOMReSfqTpuF0K4eHN_cz3hYmMGx8zmPE3ObXwGQCSKZ4FS1O=LT1_IjOpnh2MNSDXPwUMiqslVA%3D%3D%7CUUID%3D5681011b94b74dc0b0844ee38175f94e; utag_main=_st:1378679322374$ses_id:1378678234795%3Bexp-session; __utma=40367613.1750292513.1378134315.1378668974.1378677523.5; __utmb=40367613.1.10.1378677523; __utmc=40367613; __utmz=40367613.1378668974.4.2.utmcsr=google|utmccn=(organic)|utmcmd=organic|utmctr=(not%20provided); __utmv=40367613.|8=favorite_team=sabres=1^9=customer_id=adriandb=1; _ga=GA1.2.1750292513.1378134315; __qseg=Q_D|Q_T|Q_13269|Q_13267|Q_2006|Q_1956|Q_1914|Q_384|Q_383|Q_378|Q_377|Q_332|Q_326|Q_318|Q_316; s_fid=2318DE13EDC8DCCA-246B6DCAA12ECDB0; rfclient_auth=UkNjWnkzSW91UHdsSlZFVDNyZDRudzAw; rfclient_profile="dXNlck5hbWU9YWRyaWFuZGI7ZmF2b3JpdGVUZWFtPXNhYnJlcztmaXJzdE5hbWU9QWRyaWFuO2xhc3ROYW1lPUJyYXVuOw=="; gcsub=adriandb|gcl; s_ev2=%5B%5BB%5D%5D; s_cc=true; s_sq=%5B%5BB%5D%5D; __utma=71019526.1750292513.1378134315.1378669413.1378677533.5; __utmb=71019526.11.10.1378677533; __utmc=71019526; __utmz=71019526.1378677533.5.4.utmcsr=nhl.com|utmccn=(referral)|utmcmd=referral|utmcct=/ice/gamecenterlive.htm; locale=en_US; iptvpcplatform=nhlgc
+	Form Dataview sourceview URL encoded
+	'''
+	try:
+	    request = HTTP.Request(url, headers=headers, values=values)
+	except:
+	    Log("No access to XML.")
+            Dict['cookies'] = Login(Prefs['gc_username'], Prefs['gc_password'])
+	    continue
         if "<code>noaccess</code>" in request.content:
             Log("No access to XML.")
             Dict['cookies'] = Login(Prefs['gc_username'], Prefs['gc_password'])
+	    continue
         else:
             xml_data = XML.ElementFromString(request.content.strip())
             return xml_data
@@ -250,74 +341,6 @@ def GetXML(url, values, cache_length=ONE_DAY):
 
 #Helpful code from the XBMC NHL-GameCenter Add-on#    
 '''
-def convertClassicXML(inputfile,outputfile):
-    #Load the xml file
-    xmlPath = os.path.join(ROOTDIR, inputfile)
-    xml = parse(xmlPath)
-    games = xml.getElementsByTagName('Row')
-
-    #Create xml document
-    doc = Document()
-    vault = doc.createElement("vault")
-    doc.appendChild(vault)
-
-    #Get games
-    for game in games:
-        #Get title
-        title = game.getElementsByTagName('Data')[7].childNodes[0].nodeValue
-        date = re.findall(r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s(?:\d\d|\d)\S\s\d{4}\S\s', game.getElementsByTagName('Data')[7].childNodes[0].nodeValue)
-        c = time.strptime(date[0][:-2],"%B %d, %Y")
-        title = time.strftime("%Y-%m-%d",c) + ': ' + game.getElementsByTagName('Data')[7].childNodes[0].nodeValue.replace(date[0], '')
-    
-        #Get info
-        info = game.getElementsByTagName('Data')[8].childNodes[0].nodeValue
-
-        #Get thumbnail
-        thumbnail = 'http://nhl.cdn.neulion.net/u/nhl/thumbs/vault/' + game.getElementsByTagName('Data')[11].childNodes[0].nodeValue[:-3] + 'jpg'
-
-        #Get category
-        category = game.getElementsByTagName('Data')[9].childNodes[0].nodeValue
-
-        #Get rtmp links
-        rtmp_800 = "rtmp://cdncon.fcod.llnwd.net/a277/e4/mp4:s/nhl/svod/flv/vault/" + game.getElementsByTagName('Data')[11].childNodes[0].nodeValue
-        rtmp_1600 = "rtmp://cdncon.fcod.llnwd.net/a277/e4/mp4:s/nhl/svod/flv/vault/" + game.getElementsByTagName('Data')[12].childNodes[0].nodeValue
-
-        #Create main element
-        xml_game = doc.createElement("game")
-        vault.appendChild(xml_game)
-
-        #Create elements
-        xml_title = doc.createElement("title")
-        xml_info = doc.createElement("info")
-        xml_thumbnail = doc.createElement("thumbnail")
-        xml_category = doc.createElement("category")
-        xml_rtmp_800 = doc.createElement("rtmp_800")
-        xml_rtmp_1600 = doc.createElement("rtmp_1600")
-        xml_game.appendChild(xml_title)
-        xml_game.appendChild(xml_info)
-        xml_game.appendChild(xml_thumbnail)
-        xml_game.appendChild(xml_category)
-        xml_game.appendChild(xml_rtmp_800)
-        xml_game.appendChild(xml_rtmp_1600)
-
-        #Insert text
-        text = doc.createTextNode(title)
-        xml_title.appendChild(text)
-        text = doc.createTextNode(info)
-        xml_info.appendChild(text)
-        text = doc.createTextNode(thumbnail)
-        xml_thumbnail.appendChild(text)
-        text = doc.createTextNode(category)
-        xml_category.appendChild(text)
-        text = doc.createTextNode(rtmp_800)
-        xml_rtmp_800.appendChild(text)
-        text = doc.createTextNode(rtmp_1600)
-        xml_rtmp_1600.appendChild(text)
-
-
-    #Save the XML
-    saveFile(outputfile,doc.toxml('utf-8'))
-
 def VIDEOLINKS(url,name):
     #Load the xml file
     month = url[-7:-5]
@@ -735,50 +758,6 @@ def CLASSIC2(url,name):
             #Add game
             addDir2(title, url + game.getElementsByTagName('title')[0].childNodes[0].nodeValue,12,iconPath)
 
-
-def CLASSICVIDEOLINKS(url,name):
-    #Load the xml file
-    xmlPath = os.path.join(ROOTDIR, "xml/vault2.xml")
-    xml = parse(xmlPath)
-    games = xml.getElementsByTagName('game')
-
-    #Videotitle
-    videotitle = name
-    
-    #Icon Path
-    iconPath = ''
-    
-    #Get link
-    for game in games:
-        if game.getElementsByTagName('title')[0].childNodes[0].nodeValue == name:
-
-            #Download thumbnail
-            if USETHUMBNAILS == 'true':
-                iconPath = game.getElementsByTagName('thumbnail')[0].childNodes[0].nodeValue
-            
-            #Check quality settings
-            if QUALITYRTMP == 0:
-                #800kbit/s
-                path = game.getElementsByTagName('rtmp_800')[0].childNodes[0].nodeValue
-                values = {'isFlex' : 'true', 'type' : 'fvod', 'path' : path}
-                downloadXMLData('http://gamecenter.nhl.com/nhlgc/servlets/encryptvideopath ',values,"xml/classicvideopath.xml",'true')
-            else:
-                #1600kbit/s
-                path = game.getElementsByTagName('rtmp_1600')[0].childNodes[0].nodeValue
-                values = {'isFlex' : 'true', 'type' : 'fvod', 'path' : path}
-                downloadXMLData('http://gamecenter.nhl.com/nhlgc/servlets/encryptvideopath ',values,"xml/classicvideopath.xml",'true')
-                
-    #Get rtmp url
-    xmlPath = os.path.join(ROOTDIR, "xml/classicvideopath.xml")
-    xml = parse(xmlPath)
-    playpath = xml.getElementsByTagName('path')[0].childNodes[0].nodeValue.replace('rtmp://cdncon.fcod.llnwd.net/a277/e4/','')
-    rtmp_url = 'rtmp://cdncon.fcod.llnwd.net app=a277/e4 playpath=' + playpath                   
-
-    #Play
-    liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=iconPath)
-    liz.setInfo( type="Video", infoLabels={ "Title": videotitle } )
-    xbmc.Player(xbmc.PLAYER_CORE_AUTO).play(rtmp_url,liz)
-
 '''
 
 #Teams
@@ -814,3 +793,5 @@ TAM, Tampa Bay, Lightning, Tampa Bay Lightning, TAM, Lightning
 WSH, Washington, Capitals, Washington Capitals, WSH, Capitals
 WPG, Winnipeg, Jets, Winnipeg Jets, WPG, Jets
 '''
+
+#rtmp://neulionms.fcod.llnwd.net/a5306/e4/mp4:s/nhl/svod/flv/vault/CalgaryFlamesVsEdmontonOilers_4.20.83-NHL_H264_960x540_1600_SD?e=1378678374&h=8a80caef433528f9cf8542c0943da623
