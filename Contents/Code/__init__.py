@@ -233,13 +233,9 @@ def CreateClassicVideo(title, summary, thumb, date, lo_res, hi_res, include_cont
 @route(PREFIX + '/playclassicvideo')
 def PlayClassicVideo(path):
     values = {'isFlex' : 'true', 'type' : 'fvod', 'path' : 'rtmp://neulionms.fcod.llnwd.net/a5306/e4/mp4:s/nhl/svod/flv/vault/%s' % path}
-    data = GetXML(url='http://gamecenter.nhl.com/nhlgc/servlets/encryptvideopath', values=values) #, referer='http://e1.cdnl3.neulion.com/nhlgc/player/nhlgc/console.swf'
+    data = GetXML(url='http://gamecenter.nhl.com/nhlgc/servlets/encryptvideopath', values=values)
     playpath = 'mp4:' + data.xpath('//path')[0].text.split('mp4:')[1]
-    #Get rtmp url
-    #playpath = xml.getElementsByTagName('path')[0].childNodes[0].nodeValue.replace('rtmp://cdncon.fcod.llnwd.net/a277/e4/','')
     rtmp_url = 'rtmp://neulionms.fcod.llnwd.net/a5306/e4/'
-    #app = 'a5306/e4'
-    
     return IndirectResponse(VideoClipObject, key=RTMPVideoURL(url=rtmp_url, clip=playpath))
 
 @route(PREFIX + '/months', condensed=bool)
@@ -312,16 +308,6 @@ def GetXML(url, values, cache_length=ONE_DAY):
             'Connection' : 'keep-alive',
             'Content-Type' : 'application/x-www-form-urlencoded'
             }
-	'''
-	Proxy-Connection: keep-alive
-	Content-Length: 207
-	Origin: http://e1.cdnl3.neulion.com
-	User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.57 Safari/537.36
-	Accept-Encoding: gzip,deflate,sdch
-	Accept-Language: en-US,en;q=0.8
-	Cookie: JSESSIONID=32150~4E7EF3A60DDDF59D17C45CD3FABBE1BA; __qca=P0-149059437-1378134316812; gig3pc=1; kick_sess=nhl-2413137|1378127606|1378690987|405fd20a9c1fc18dd6ad1d806fb5d61594d21f71; glt_2_pd9mRZHRYIukd6DpOMReSfqTpuF0K4eHN_cz3hYmMGx8zmPE3ObXwGQCSKZ4FS1O=LT1_IjOpnh2MNSDXPwUMiqslVA%3D%3D%7CUUID%3D5681011b94b74dc0b0844ee38175f94e; utag_main=_st:1378679322374$ses_id:1378678234795%3Bexp-session; __utma=40367613.1750292513.1378134315.1378668974.1378677523.5; __utmb=40367613.1.10.1378677523; __utmc=40367613; __utmz=40367613.1378668974.4.2.utmcsr=google|utmccn=(organic)|utmcmd=organic|utmctr=(not%20provided); __utmv=40367613.|8=favorite_team=sabres=1^9=customer_id=adriandb=1; _ga=GA1.2.1750292513.1378134315; __qseg=Q_D|Q_T|Q_13269|Q_13267|Q_2006|Q_1956|Q_1914|Q_384|Q_383|Q_378|Q_377|Q_332|Q_326|Q_318|Q_316; s_fid=2318DE13EDC8DCCA-246B6DCAA12ECDB0; rfclient_auth=UkNjWnkzSW91UHdsSlZFVDNyZDRudzAw; rfclient_profile="dXNlck5hbWU9YWRyaWFuZGI7ZmF2b3JpdGVUZWFtPXNhYnJlcztmaXJzdE5hbWU9QWRyaWFuO2xhc3ROYW1lPUJyYXVuOw=="; gcsub=adriandb|gcl; s_ev2=%5B%5BB%5D%5D; s_cc=true; s_sq=%5B%5BB%5D%5D; __utma=71019526.1750292513.1378134315.1378669413.1378677533.5; __utmb=71019526.11.10.1378677533; __utmc=71019526; __utmz=71019526.1378677533.5.4.utmcsr=nhl.com|utmccn=(referral)|utmcmd=referral|utmcct=/ice/gamecenterlive.htm; locale=en_US; iptvpcplatform=nhlgc
-	Form Dataview sourceview URL encoded
-	'''
 	try:
 	    request = HTTP.Request(url, headers=headers, values=values)
 	except:
