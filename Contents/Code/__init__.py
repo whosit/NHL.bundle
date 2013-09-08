@@ -142,12 +142,18 @@ def FilteredClassics(option):
     elif option == "Team":
         teams = []
         for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
-            team_city = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[1].text
-            team_name = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[2].text
-            team = "%s %s" % (team_city, team_name)
-            if team not in teams:
-                teams.append(team)
-                oc.add(DirectoryObject(key=Callback(ClassicsTeams, team=team), title=team))
+            team1_city = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[1].text.strip()
+            team1_name = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[2].text.strip()
+            team1 = "%s %s" % (team1_city, team1_name)
+            if team1 not in teams:
+                teams.append(team1)
+                oc.add(DirectoryObject(key=Callback(ClassicsTeams, team=team1), title=team1))
+	    team2_city = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[4].text.strip()
+            team2_name = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[5].text.strip()
+            team2 = "%s %s" % (team2_city, team2_name)
+            if team2 not in teams:
+                teams.append(team2)
+                oc.add(DirectoryObject(key=Callback(ClassicsTeams, team=team2), title=team2))
     elif option == "Key Players":
         players = []
         for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
@@ -193,7 +199,36 @@ def ClassicsDecades(decade, offset=0):
 
 @route(PREFIX + '/classicsteams', offset=int)
 def ClassicsTeams(team, offset=0):
-    return
+    oc = ObjectContainer(title2="Classic Games")
+    data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
+    i=offset
+    count = 0
+    while count < 10 and i < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
+	game = data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)[i]
+	teams = []
+	i = i +1
+        team1_city = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[1].text.strip()
+        team1_name = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[2].text.strip()
+        team1 = "%s %s" % (team1_city, team1_name)
+        teams.append(team1)
+	team2_city = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[4].text.strip()
+        team2_name = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[5].text.strip()
+        team2 = "%s %s" % (team2_city, team2_name)
+        teams.append(team2)
+	if team in teams:
+	    date = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[0].text
+	    title = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[7].text
+	    summary = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[8].text
+	    thumb = 'http://nhl.cdn.neulion.net/u/nhl/thumbs/vault/' + game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text[:-3] + 'jpg'
+	    lo_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text
+	    hi_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[12].text
+	    oc.add(CreateClassicVideo(title=title, summary=summary, thumb=thumb, date=date, lo_res=lo_res, hi_res=hi_res))
+	    count = count + 1
+	else:
+	    continue
+    if i < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
+        oc.add(NextPageObject(key=Callback(ClassicsDecades, decade=decade, offset=i)))
+    return oc
 
 @route(PREFIX + '/classicsplayers', offset=int)
 def ClassicsPlayers(player, offset=0):
@@ -320,7 +355,7 @@ def GetXML(url, values, cache_length=ONE_DAY):
             'Host' : 'gamecenter.nhl.com',
             'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)',
             'Accept' : '*/*',
-            'Referer' : referer,
+            'Referer' : 'http://gamecenter.nhl.com/nhlgc/console.jsp',
             'Accept-Language' : 'de-de',
             'Accept-Encoding' : 'gzip, deflate',
             'Cookie' : Dict['cookies'],
