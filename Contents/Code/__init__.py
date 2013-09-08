@@ -9,11 +9,11 @@ GAMES_XML       = 'http://gamecenter.nhl.com/nhlgc/servlets/archives'
 VAULT_XML       = 'http://nhl.cdn.neulion.net/u/nhlgc/flex/vault.xml'
 
 VAULT_NAMESPACES = {
-    "xmlns" 	: 	"urn:schemas-microsoft-com:office:spreadsheet",
-    "o" 	: 	"urn:schemas-microsoft-com:office:office",
-    "x"		:	"urn:schemas-microsoft-com:office:excel",
-    "ss"	:	"urn:schemas-microsoft-com:office:spreadsheet",
-    "html"	:	"http://www.w3.org/TR/REC-html40"
+    "xmlns"     :       "urn:schemas-microsoft-com:office:spreadsheet",
+    "o"         :       "urn:schemas-microsoft-com:office:office",
+    "x"         :       "urn:schemas-microsoft-com:office:excel",
+    "ss"        :       "urn:schemas-microsoft-com:office:spreadsheet",
+    "html"      :       "http://www.w3.org/TR/REC-html40"
     }
 
 ONE_HOUR        = 60 * 60
@@ -112,19 +112,17 @@ def UnfilteredClassics(offset=0):
     i=offset
     new_offset = offset + 20
     while i < new_offset:
-	game = data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)[i]
-	#date = Datetime.ParseDate(game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[0].text).date()
-	date = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[0].text
-	title = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[7].text
-	summary = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[8].text
-	thumb = 'http://nhl.cdn.neulion.net/u/nhl/thumbs/vault/' + game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text[:-3] + 'jpg'
-	Log(thumb)
-	lo_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text
-	hi_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[12].text
-	oc.add(CreateClassicVideo(title=title, summary=summary, thumb=thumb, date=date, lo_res=lo_res, hi_res=hi_res))
-	i += 1
+        game = data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)[i]
+        date = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[0].text
+        title = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[7].text
+        summary = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[8].text
+        thumb = 'http://nhl.cdn.neulion.net/u/nhl/thumbs/vault/' + game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text[:-3] + 'jpg'
+        lo_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text
+        hi_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[12].text
+        oc.add(CreateClassicVideo(title=title, summary=summary, thumb=thumb, date=date, lo_res=lo_res, hi_res=hi_res))
+        i += 1
     if offset < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
-	oc.add(NextPageObject(key=Callback(UnfilteredClassics, offset=new_offset)))
+        oc.add(NextPageObject(key=Callback(UnfilteredClassics, offset=new_offset)))
     return oc
 
 @route(PREFIX + '/filteredclassics')
@@ -132,102 +130,123 @@ def FilteredClassics(option):
     oc = ObjectContainer(title2="Classic Games")
     data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
     Decades = [
-	{"title" : "1960s", "range" : ["1960","1969"]},
-	{"title" : "1970s", "range" : ["1970","1979"]},
-	{"title" : "1980s", "range" : ["1980","1989"]},
-	{"title" : "1990s", "range" : ["1990","1999"]},
-	{"title" : "2000s", "range" : ["2000","2013"]}
-	]
+        {"title" : "1960s", "range" : ["1960","1969"]},
+        {"title" : "1970s", "range" : ["1970","1979"]},
+        {"title" : "1980s", "range" : ["1980","1989"]},
+        {"title" : "1990s", "range" : ["1990","1999"]},
+        {"title" : "2000s", "range" : ["2000","2013"]}
+        ]
     if option == "Decade":
-	for decade in Decades:
-	    oc.add(DirectoryObject(key=Callback(ClassicsDecades, decade=decade['range']), title=decade['title']))
+        for decade in Decades:
+            oc.add(DirectoryObject(key=Callback(ClassicsDecades, decade=decade['range']), title=decade['title']))
     elif option == "Team":
-	teams = []
-	for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
-	    team_city = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[1].text
-	    team_name = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[2].text
-	    team = "%s %s" % (team_city, team_name)
-	    if team not in teams:
-		teams.append(team)
-		oc.add(DirectoryObject(key=Callback(ClassicsTeams, team=team), title=team))
+        teams = []
+        for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
+            team_city = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[1].text
+            team_name = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[2].text
+            team = "%s %s" % (team_city, team_name)
+            if team not in teams:
+                teams.append(team)
+                oc.add(DirectoryObject(key=Callback(ClassicsTeams, team=team), title=team))
     elif option == "Key Players":
-	players = []
-	for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
-	    for entry in game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[13].text.split(','):
-		player = entry.strip()
-		if player not in players:
-		    players.append(player)
-		    oc.add(DirectoryObject(key=Callback(ClassicsPlayers, player=player), title=player))
+        players = []
+        for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
+            for entry in game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[13].text.split(','):
+                player = entry.strip()
+                if player not in players:
+                    players.append(player)
+                    oc.add(DirectoryObject(key=Callback(ClassicsPlayers, player=player), title=player))
     elif option == "Category":
-	categories = []
-	for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
-	    category = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[9].text
-	    if category not in categories:
-	        categories.append(category)
-		oc.add(DirectoryObject(key=Callback(ClassicsCategories, category=category), title=category))
+        categories = []
+        for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
+            category = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[9].text
+            if category not in categories:
+                categories.append(category)
+                oc.add(DirectoryObject(key=Callback(ClassicsCategories, category=category), title=category))
     oc.objects.sort(key = lambda obj: obj.title)
     return oc
 
-@route(PREFIX + '/classicsdecades', decade=list)
-def ClassicsDecades(decade):
+@route(PREFIX + '/classicsdecades', decade=list, offset=int)
+def ClassicsDecades(decade, offset=0):
+    oc = ObjectContainer(title2="Classic Games")
+    data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
+    i=offset
+    count = 0
+    while count < 10 and i < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
+	game = data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)[i]
+	i = i +1
+        date = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[0].text
+	year = Datetime.ParseDate(date).year
+	if year in range(int(decade[0]),int(decade[1])):
+	    title = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[7].text
+	    summary = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[8].text
+	    thumb = 'http://nhl.cdn.neulion.net/u/nhl/thumbs/vault/' + game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text[:-3] + 'jpg'
+	    lo_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text
+	    hi_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[12].text
+	    oc.add(CreateClassicVideo(title=title, summary=summary, thumb=thumb, date=date, lo_res=lo_res, hi_res=hi_res))
+	    count = count + 1
+	else:
+	    continue
+    if i < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
+        oc.add(NextPageObject(key=Callback(ClassicsDecades, decade=decade, offset=i)))
+    return oc
+
+@route(PREFIX + '/classicsteams', offset=int)
+def ClassicsTeams(team, offset=0):
     return
 
-@route(PREFIX + '/classicsteams')
-def ClassicsTeams(team):
+@route(PREFIX + '/classicsplayers', offset=int)
+def ClassicsPlayers(player, offset=0):
     return
 
-@route(PREFIX + '/classicsplayers')
-def ClassicsPlayers(player):
-    return
-
-@route(PREFIX + '/classicscategories')
-def ClassicsCategories(category):
+@route(PREFIX + '/classicscategories', offset=int)
+def ClassicsCategories(category, offset=0):
     return
 
 @route(PREFIX + '/classicsvideo')
 def CreateClassicVideo(title, summary, thumb, date, lo_res, hi_res, include_container=False):
     videoclip_obj = VideoClipObject(
-	key = Callback(CreateClassicVideo, title=title, summary=summary, thumb=thumb, date=date,
-	    lo_res=lo_res, hi_res=hi_res, include_container=True),
-	rating_key = thumb,
-	title = title,
-	thumb=thumb,
-	summary = summary,
-	originally_available_at = Datetime.ParseDate(date.replace("+"," ")).date(),
-	items = [
-	    MediaObject(
-	        parts = [
-	        PartObject(
-		    key=RTMPVideoURL(Callback(PlayClassicVideo, path=hi_res)),
-		    streams=[AudioStreamObject(language_code=Locale.Language.English)]
-		)
-	    ],
-	    video_codec = VideoCodec.H264,
-	    audio_codec = AudioCodec.AAC,
-	    video_resolution = '540',
-	    bitrate = '1600',
-	    optimized_for_streaming = True
-	    ),
-	    MediaObject(
-	        parts = [
-	        PartObject(
-		    key=RTMPVideoURL(Callback(PlayClassicVideo, path=lo_res)),
-		    streams=[AudioStreamObject(language_code=Locale.Language.English)]
-		    )
-		],
-	    video_codec = VideoCodec.H264,
-	    audio_codec = AudioCodec.AAC,
-	    video_resolution = '360',
-	    bitrate = '800',
-	    optimized_for_streaming = True
-	    )
-	]
+        key = Callback(CreateClassicVideo, title=title, summary=summary, thumb=thumb, date=date,
+            lo_res=lo_res, hi_res=hi_res, include_container=True),
+        rating_key = thumb,
+        title = title,
+        thumb=thumb,
+        summary = summary,
+        originally_available_at = Datetime.ParseDate(date.replace("+"," ")).date(),
+        items = [
+            MediaObject(
+                parts = [
+                PartObject(
+                    key=RTMPVideoURL(Callback(PlayClassicVideo, path=hi_res)),
+                    streams=[AudioStreamObject(language_code=Locale.Language.English)]
+                )
+            ],
+            video_codec = VideoCodec.H264,
+            audio_codec = AudioCodec.AAC,
+            video_resolution = '540',
+            bitrate = '1600',
+            optimized_for_streaming = True
+            ),
+            MediaObject(
+                parts = [
+                PartObject(
+                    key=RTMPVideoURL(Callback(PlayClassicVideo, path=lo_res)),
+                    streams=[AudioStreamObject(language_code=Locale.Language.English)]
+                    )
+                ],
+            video_codec = VideoCodec.H264,
+            audio_codec = AudioCodec.AAC,
+            video_resolution = '360',
+            bitrate = '800',
+            optimized_for_streaming = True
+            )
+        ]
     )
 
     if include_container:
-	return ObjectContainer(objects=[videoclip_obj])
+        return ObjectContainer(objects=[videoclip_obj])
     else:
-	return videoclip_obj
+        return videoclip_obj
 
 @indirect
 @route(PREFIX + '/playclassicvideo')
@@ -308,16 +327,16 @@ def GetXML(url, values, cache_length=ONE_DAY):
             'Connection' : 'keep-alive',
             'Content-Type' : 'application/x-www-form-urlencoded'
             }
-	try:
-	    request = HTTP.Request(url, headers=headers, values=values)
-	except:
-	    Log("No access to XML.")
+        try:
+            request = HTTP.Request(url, headers=headers, values=values)
+        except:
+            Log("No access to XML.")
             Dict['cookies'] = Login(Prefs['gc_username'], Prefs['gc_password'])
-	    continue
+            continue
         if "<code>noaccess</code>" in request.content:
             Log("No access to XML.")
             Dict['cookies'] = Login(Prefs['gc_username'], Prefs['gc_password'])
-	    continue
+            continue
         else:
             xml_data = XML.ElementFromString(request.content.strip())
             return xml_data
