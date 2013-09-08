@@ -7,6 +7,7 @@ GAME_XML = 'http://gamecenter.nhl.com/nhlgc/servlets/game'
 RE_PART_1 = Regex('(nlds_vod/nhl/vod/.+)\.mp4')
 RE_PART_2 = Regex('(./nhlmobile/vod/nhl/.+)\.mp4')
 
+AudioStreamObject.language_code = Locale.Language.English
 ####################################################################################################
 def NormalizeURL(url):
 	return url
