@@ -4,6 +4,8 @@ RE_GAME = Regex('\?id=(?P<season>[0-9]{4})(?P<gtype>[0-9]{2})(?P<game_id>[0-9]{4
 
 GAME_XML = 'http://gamecenter.nhl.com/nhlgc/servlets/game'
 
+RE_PART1 = Regex('(nlds_vod/nhl/vod/.+)\.mp4')
+
 ####################################################################################################
 def NormalizeURL(url):
 	return url
@@ -34,35 +36,18 @@ def MetadataObjectForURL(url):
 		title = title,
 		summary=summary,
 		originally_available_at=date,
-		thumb = R('icon-default.png')
+		thumb = R('nhl.png')
 	)
 
 ####################################################################################################
 def MediaObjectsForURL(url):
-	values = GetValues(url)
-	if int(values['season']) >= 2012:
-		BITRATES = [
-			{'bitrate':'4500', 'res':'720'},
-			{'bitrate':'3000', 'res':'720'},
-			{'bitrate':'1600', 'res':'540'},
-			{'bitrate':'800', 'res':'360'}
-			]
-	else:
-		BITRATES = [
-			{'bitrate':'3000', 'res':'720'},
-			{'bitrate':'1600', 'res':'540'},
-			{'bitrate':'800', 'res':'360'}
-			]
-	media_objects = []
-	for bitrate in BITRATES:
-		media_objects.append(
-			MediaObject(
-				parts=[PartObject(key=HTTPLiveStreamURL(Callback(PlayHLS, url=url, bitrate=bitrate['bitrate'])))],
-				bitrate = bitrate['bitrate'],
-				video_resolution = bitrate['res']
-			)
+	return [
+		MediaObject(
+			parts=[PartObject(key=HTTPLiveStreamURL(Callback(PlayHLS, url=url, bitrate=bitrate['bitrate'])))],
+			bitrate = bitrate['bitrate'],
+			video_resolution = bitrate['res']
 		)
-	return media_objects
+	]
 
 ####################################################################################################
 @indirect
@@ -70,28 +55,10 @@ def PlayHLS(url, bitrate):
 	game = GetXML(url).xpath('//game')[0]
 	values = GetValues(url)
 	playpath = game.xpath('.//publishPoint')[0].text
-	playpath_part1 = playpath[37:][:-49]
-	playpath_part2 = playpath[-45:]
-	m3u8_url = "http://nhl.cdn.neulion.net/%s/v1/playlist_%s.m3u8" % (playpath_part1[4:], bitrate)
-        m3u8_url = m3u8_url.replace('/pc/', '/ced/')
-	
-	#Fix for 2012-2013 season
-        if int(values['season']) >= 2012:
-		m3u8_url = m3u8_url.replace('http://nhl.cdn.neulion.net/', 'http://nlds150.cdnak.neulion.com/')
-                m3u8_url = m3u8_url.replace('s/nhlmobile/vod/nhl/', 'nlds_vod/nhl/vod/')
-		m3u8_url = m3u8_url.replace('/v1/playlist', '')
-		m3u8_url = m3u8_url.replace('.m3u8', '_ced.mp4.m3u8')
-		
-		#Fix for early games in the season
-                m3u8_url = m3u8_url.replace('condensed_ced', 'condensed_1_ced')
-                m3u8_url = m3u8_url.replace('condensed_4500', 'condensed_1_4500')
-                m3u8_url = m3u8_url.replace('condensed_3000', 'condensed_1_3000')
-                m3u8_url = m3u8_url.replace('condensed_1600', 'condensed_1_1600')
-                m3u8_url = m3u8_url.replace('condensed_800', 'condensed_1_800')
-		
-		#Fix for some streams
-                m3u8_url = m3u8_url.replace('s/as3/', '')
-
+	#playpath_part1 = playpath[37:][:-49]
+	playpath_part1 = RE_PART1.search(playpath).group(1)
+	m3u8_url = "http://nlds150.neulion.com/%s_ced.mp4.m3u8" % (playpath_part1.rstrip('_pc'))
+        
 	if "#AWAY" in url:
 		m3u8_url = m3u8_url.replace('_h_', '_a_')
 	
