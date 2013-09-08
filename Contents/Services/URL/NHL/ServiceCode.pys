@@ -43,15 +43,14 @@ def MetadataObjectForURL(url):
 def MediaObjectsForURL(url):
 	return [
 		MediaObject(
-			parts=[PartObject(key=HTTPLiveStreamURL(Callback(PlayHLS, url=url, bitrate=bitrate['bitrate'])))],
-			bitrate = bitrate['bitrate'],
-			video_resolution = bitrate['res']
+			parts=[PartObject(key=HTTPLiveStreamURL(Callback(PlayHLS, url=url)))],
+			video_resolution = 720
 		)
 	]
 
 ####################################################################################################
 @indirect
-def PlayHLS(url, bitrate):
+def PlayHLS(url):
 	game = GetXML(url).xpath('//game')[0]
 	values = GetValues(url)
 	playpath = game.xpath('.//publishPoint')[0].text
