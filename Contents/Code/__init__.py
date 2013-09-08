@@ -46,7 +46,7 @@ def MainMenu():
     #oc.add(DirectoryObject(key=Callback(LiveGames), title="Live Games"))
     oc.add(DirectoryObject(key=Callback(ArchiveGames, condensed=True), title="Condensed Games"))
     oc.add(DirectoryObject(key=Callback(ArchiveGames), title="Archived Games"))
-    #oc.add(DirectoryObject(key=Callback(ClassicGames), title="Classic Games"))
+    oc.add(DirectoryObject(key=Callback(ClassicGames), title="Classic Games"))
     oc.add(PrefsObject(title="Preferences"))
     return oc
 
@@ -74,12 +74,21 @@ def ArchiveGames(condensed=False):
 @route(PREFIX + '/classic')
 def ClassicGames():
     oc = ObjectContainer(title2="Classic Games")
-    #content = HTTP.Request(url=VAULT_XML, cacheTime=ONE_WEEK).content
-    #Log(content)
-    #data = XML.ElementFromString(content)
-    data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
-    
+    filters = ['Decade', 'Team', 'Key Players', 'Category']
+    oc.add(ObjectContainer(key=Callback(UnfilteredClassics), title="All Classic Games"))
+    for option in filters:
+	oc.add(ObjectContainer(key=Callback(FilteredClassics, option=option), title="Filter by %s" % option))
     return oc
+
+@route(PREFIX + '/unfilteredclassics')
+def UnfilteredClassics():
+    data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
+    return
+
+@route(PREFIX + '/unfilteredclassics')
+def FilteredClassics(option):
+    data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
+    return
 
 @route(PREFIX + '/months', condensed=bool)
 def Months(season, condensed=False):
@@ -116,7 +125,7 @@ def Games(season, month, condensed=False):
 	result = game.xpath("./result")[0].text
 	
         title = "%s at %s - %s" % (awayTeam, homeTeam, date)
-	url = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s03%s' % (season, game_id)
+	url = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s0%s%s' % (season, gctype, game_id)
 	if Prefs['score_summary']:
 	    summary = "%s - %s %s" % (awayGoals, homeGoals, result)
 	else:
