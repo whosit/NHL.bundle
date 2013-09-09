@@ -157,11 +157,15 @@ def FilteredClassics(option):
     elif option == "Key Players":
         players = []
         for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
-            for entry in game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[13].text.split(','):
-                player = entry.strip()
-                if player not in players:
-                    players.append(player)
-                    oc.add(DirectoryObject(key=Callback(ClassicsPlayers, player=player), title=player))
+            try:
+		key_players = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[13].text
+		for player in key_players.split(','):
+		    player = player.strip()
+		    if player not in players:
+			players.append(player)
+			oc.add(DirectoryObject(key=Callback(ClassicsPlayers, player=player), title=player))
+	    except:
+		continue
     elif option == "Category":
         categories = []
         for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
@@ -227,12 +231,36 @@ def ClassicsTeams(team, offset=0):
 	else:
 	    continue
     if i < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
-        oc.add(NextPageObject(key=Callback(ClassicsDecades, decade=decade, offset=i)))
+        oc.add(NextPageObject(key=Callback(ClassicsTeams, team=team, offset=i)))
     return oc
 
 @route(PREFIX + '/classicsplayers', offset=int)
 def ClassicsPlayers(player, offset=0):
-    return
+    oc = ObjectContainer(title2="Classic Games")
+    data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
+    i=offset
+    count = 0
+    while count < 10 and i < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
+	game = data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)[i]
+	i = i +1
+	try:
+	    players = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[13].text	    
+	    if player in players:
+	        date = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[0].text
+	        title = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[7].text
+	        summary = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[8].text
+	        thumb = 'http://nhl.cdn.neulion.net/u/nhl/thumbs/vault/' + game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text[:-3] + 'jpg'
+	        lo_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text
+	        hi_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[12].text
+	        oc.add(CreateClassicVideo(title=title, summary=summary, thumb=thumb, date=date, lo_res=lo_res, hi_res=hi_res))
+	        count = count + 1
+	    else:
+	        continue
+	except:
+	    continue
+    if i < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
+        oc.add(NextPageObject(key=Callback(ClassicsPlayers, player=player, offset=i)))
+    return oc
 
 @route(PREFIX + '/classicscategories', offset=int)
 def ClassicsCategories(category, offset=0):
@@ -833,5 +861,3 @@ TAM, Tampa Bay, Lightning, Tampa Bay Lightning, TAM, Lightning
 WSH, Washington, Capitals, Washington Capitals, WSH, Capitals
 WPG, Winnipeg, Jets, Winnipeg Jets, WPG, Jets
 '''
-
-#rtmp://neulionms.fcod.llnwd.net/a5306/e4/mp4:s/nhl/svod/flv/vault/CalgaryFlamesVsEdmontonOilers_4.20.83-NHL_H264_960x540_1600_SD?e=1378678374&h=8a80caef433528f9cf8542c0943da623
