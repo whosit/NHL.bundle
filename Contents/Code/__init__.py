@@ -264,7 +264,28 @@ def ClassicsPlayers(player, offset=0):
 
 @route(PREFIX + '/classicscategories', offset=int)
 def ClassicsCategories(category, offset=0):
-    return
+    oc = ObjectContainer(title2="Classic Games")
+    data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
+    i=offset
+    count = 0
+    while count < 10 and i < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
+	game = data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)[i]
+	i = i +1
+	game_category = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[9].text
+	if category == game_category:
+	    date = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[0].text
+	    title = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[7].text
+	    summary = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[8].text
+	    thumb = 'http://nhl.cdn.neulion.net/u/nhl/thumbs/vault/' + game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text[:-3] + 'jpg'
+	    lo_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[11].text
+	    hi_res = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[12].text
+	    oc.add(CreateClassicVideo(title=title, summary=summary, thumb=thumb, date=date, lo_res=lo_res, hi_res=hi_res))
+	    count = count + 1
+	else:
+	    continue
+    if i < len(data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES)):
+        oc.add(NextPageObject(key=Callback(ClassicsCategories, category=category, offset=i)))
+    return oc
 
 @route(PREFIX + '/classicsvideo')
 def CreateClassicVideo(title, summary, thumb, date, lo_res, hi_res, include_container=False):
