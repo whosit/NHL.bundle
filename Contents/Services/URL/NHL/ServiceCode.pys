@@ -66,16 +66,20 @@ def PlayHLS(url):
 		Log.Debug('Find the "Away" feed.')
 		if '#CONDENSED' in url:
 			Log.Debug('Find the "Condensed" feed.')
-			playpath = game.xpath('.//awayCondensed//publishPoint')[0].text
+			try: playpath = game.xpath('.//awayCondensed//publishPoint')[0].text
+			except: playpath = game.xpath('.//condensed//publishPoint')[0].text
 		else:
-			playpath = game.xpath('.//awayProgram//publishPoint')[0].text
+			try: playpath = game.xpath('.//awayProgram//publishPoint')[0].text
+			except: playpath = game.xpath('.//program//publishPoint')[0].text
 	elif "#HOME" in url:
 		Log.Debug('Find the "Home" feed.')
 		if '#CONDENSED' in url:
 			Log.Debug('Find the "Condensed" feed.')
-			playpath = game.xpath('.//homeCondensed//publishPoint')[0].text
+			try: playpath = game.xpath('.//homeCondensed//publishPoint')[0].text
+			except: playpath = game.xpath('.//condensed//publishPoint')[0].text
 		else:
-			playpath = game.xpath('.//homeProgram//publishPoint')[0].text
+			try: playpath = game.xpath('.//homeProgram//publishPoint')[0].text
+			except: playpath = game.xpath('.//program//publishPoint')[0].text
 	else:
 		Log.Debug('Find the first available feed.')
 		playpath = game.xpath('.//publishPoint')[0].text
