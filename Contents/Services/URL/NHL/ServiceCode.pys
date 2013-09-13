@@ -35,9 +35,9 @@ def MetadataObjectForURL(url):
 	else:
 	    summary = ''
 	if '#HOME' in url:
-		summary += "\nHome Feed"
+		summary += "\n" + L("Home Feed")
 	elif '#AWAY' in url:
-		summary += "\nAway  Feed"
+		summary += "\n" + L("Away  Feed")
 	else:
 		pass
 	

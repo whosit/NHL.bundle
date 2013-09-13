@@ -1,20 +1,20 @@
 [
     {
         "id":       "gc_username",
-        "label":    "Username",
+        "label":    L("Username"),
         "type":     "text",
         "default":  ""
     },
     {
         "id":       "gc_password",
-        "label":    "Password",
+        "label":    L("Password"),
         "type":     "text",
         "option":   "hidden",
         "default":  ""
     },
     {
         "id":       "score_summary",
-        "label":    "Show scores in summary",
+        "label":    L("Show scores in summary"),
         "type":     "bool",
         "default":  "false"
     }

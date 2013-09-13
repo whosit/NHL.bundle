@@ -22,7 +22,7 @@ ONE_WEEK        = ONE_DAY * 7
 ONE_MONTH       = ONE_DAY * 30
 ####################################################################################################
 PREFIX  = "/video/nhl"
-NAME    = 'NHL'
+NAME    = L("NHL")
 ART     = 'art-default.jpg'
 ICON    = 'icon-default.png'
 NHL     = 'nhl.png'
@@ -44,18 +44,18 @@ def ValidatePrefs():
     else:
         Log("Login failed")
         return ObjectContainer(
-            header="Error",
-            message="You need to provide a valid username and password. Please buy a subscription."
+            header=L("Error"),
+            message=L("You need to provide a valid username and password. Please buy a subscription.")
         )
 
 @handler(PREFIX, NAME)
 def MainMenu():    
     oc = ObjectContainer()
     #oc.add(DirectoryObject(key=Callback(LiveGames), title="Live Games"))
-    oc.add(DirectoryObject(key=Callback(ArchiveGames, condensed=True), title="Condensed Games"))
-    oc.add(DirectoryObject(key=Callback(ArchiveGames), title="Archived Games"))
-    oc.add(DirectoryObject(key=Callback(ClassicGames), title="Classic Games"))
-    oc.add(PrefsObject(title="Preferences"))
+    oc.add(DirectoryObject(key=Callback(ArchiveGames, condensed=True), title=L("Condensed Games")))
+    oc.add(DirectoryObject(key=Callback(ArchiveGames), title=L("Archived Games")))
+    oc.add(DirectoryObject(key=Callback(ClassicGames), title=L("Classic Games")))
+    oc.add(PrefsObject(title=L("Preferences")))
     return oc
 
 @route(PREFIX + '/live')
@@ -64,28 +64,28 @@ def LiveGames():
 
 @route(PREFIX + '/archive', condensed=bool)
 def ArchiveGames(condensed=False):
-    oc = ObjectContainer(title2="Archived Games")
+    oc = ObjectContainer(title2=L("Archived Games"))
     data = GetXML(url=ARCHIVE_XML, values={'date' : 'true', 'isFlex' : 'true'}, cache_length=ONE_DAY)
     seasons = data.xpath('//season')
     seasons.reverse()
     current_season = seasons[0].get('id')
     current_month = seasons[0].xpath('./g')[-1].text.split('/')[0]
-    oc.add(DirectoryObject(key=Callback(Games, season=current_season, month=current_month, condensed=condensed), title="Most Recent Games"))
+    oc.add(DirectoryObject(key=Callback(Games, season=current_season, month=current_month, condensed=condensed), title=L("Most Recent Games")))
     for entry in seasons:
         season = entry.get('id')
         if int(season) < 2010:
             ''' links for seasons older than this don't work, so we'll ignore them '''
             continue
-        oc.add(DirectoryObject(key=Callback(Months, season=season), title="%s Season" % season))
+        oc.add(DirectoryObject(key=Callback(Months, season=season), title=season + L(" Season")))
     return oc
 
 @route(PREFIX + '/classic')
 def ClassicGames():
-    oc = ObjectContainer(title2="Classic Games")
-    filters = ['Decade', 'Team', 'Key Players', 'Category']
-    oc.add(DirectoryObject(key=Callback(UnfilteredClassics), title="All Classic Games"))
+    oc = ObjectContainer(title2=L("Classic Games"))
+    filters = [L("Decade"), L("Team"), L("Key Players"), L("Category")]
+    oc.add(DirectoryObject(key=Callback(UnfilteredClassics), title=L("All Classic Games")))
     for option in filters:
-        oc.add(DirectoryObject(key=Callback(FilteredClassics, option=option), title="Filter by %s" % option))
+        oc.add(DirectoryObject(key=Callback(FilteredClassics, option=option), title=L("Filter by ") + option))
     return oc
 
 '''
@@ -107,7 +107,7 @@ Cell[13]/Data[0].text => key player(s)
 
 @route(PREFIX + '/unfilteredclassics', offset=int)
 def UnfilteredClassics(offset=0):
-    oc = ObjectContainer(title2="Classic Games")
+    oc = ObjectContainer(title2=L("Classic Games"))
     data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
     i=offset
     new_offset = offset + 20
@@ -127,7 +127,7 @@ def UnfilteredClassics(offset=0):
 
 @route(PREFIX + '/filteredclassics')
 def FilteredClassics(option):
-    oc = ObjectContainer(title2="Classic Games")
+    oc = ObjectContainer(title2=L("Classic Games"))
     data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
     Decades = [
         {"title" : "1960s", "range" : ["1960","1969"]},
@@ -136,10 +136,10 @@ def FilteredClassics(option):
         {"title" : "1990s", "range" : ["1990","1999"]},
         {"title" : "2000s", "range" : ["2000","2013"]}
         ]
-    if option == "Decade":
+    if option == L("Decade"):
         for decade in Decades:
             oc.add(DirectoryObject(key=Callback(ClassicsDecades, decade=decade['range']), title=decade['title']))
-    elif option == "Team":
+    elif option == L("Team"):
         teams = []
         for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
             team1_city = game.xpath('.//ss:Data', namespaces=VAULT_NAMESPACES)[1].text.strip()
@@ -154,7 +154,7 @@ def FilteredClassics(option):
             if team2 not in teams:
                 teams.append(team2)
                 oc.add(DirectoryObject(key=Callback(ClassicsTeams, team=team2), title=team2))
-    elif option == "Key Players":
+    elif option == L("Key Players"):
         players = []
         for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
             try:
@@ -166,7 +166,7 @@ def FilteredClassics(option):
 			oc.add(DirectoryObject(key=Callback(ClassicsPlayers, player=player), title=player))
 	    except:
 		continue
-    elif option == "Category":
+    elif option == L("Category"):
         categories = []
         for game in data.xpath('//ss:Row', namespaces=VAULT_NAMESPACES):
             category = game.xpath('./ss:Cell/ss:Data', namespaces=VAULT_NAMESPACES)[9].text
@@ -178,7 +178,7 @@ def FilteredClassics(option):
 
 @route(PREFIX + '/classicsdecades', decade=list, offset=int)
 def ClassicsDecades(decade, offset=0):
-    oc = ObjectContainer(title2="Classic Games")
+    oc = ObjectContainer(title2=L("Classic Games"))
     data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
     i=offset
     count = 0
@@ -203,7 +203,7 @@ def ClassicsDecades(decade, offset=0):
 
 @route(PREFIX + '/classicsteams', offset=int)
 def ClassicsTeams(team, offset=0):
-    oc = ObjectContainer(title2="Classic Games")
+    oc = ObjectContainer(title2=L("Classic Games"))
     data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
     i=offset
     count = 0
@@ -236,7 +236,7 @@ def ClassicsTeams(team, offset=0):
 
 @route(PREFIX + '/classicsplayers', offset=int)
 def ClassicsPlayers(player, offset=0):
-    oc = ObjectContainer(title2="Classic Games")
+    oc = ObjectContainer(title2=L("Classic Games"))
     data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
     i=offset
     count = 0
@@ -264,7 +264,7 @@ def ClassicsPlayers(player, offset=0):
 
 @route(PREFIX + '/classicscategories', offset=int)
 def ClassicsCategories(category, offset=0):
-    oc = ObjectContainer(title2="Classic Games")
+    oc = ObjectContainer(title2=L("Classic Games"))
     data = XML.ElementFromURL(url=VAULT_XML, cacheTime=ONE_WEEK)
     i=offset
     count = 0
@@ -343,7 +343,7 @@ def PlayClassicVideo(path):
 
 @route(PREFIX + '/months', condensed=bool)
 def Months(season, condensed=False):
-    oc = ObjectContainer(title1="Archived Games", title2="%s Season" % season)
+    oc = ObjectContainer(title1=L("Archived Games"), title2=season + L(" Season"))
     data = GetXML(url=ARCHIVE_XML, values={'date' : 'true', 'isFlex' : 'true'}, cache_length=ONE_DAY)
     season_dates = data.xpath('//season[@id="'+season+'"]')[0].xpath('./g')
     months = []
@@ -351,7 +351,7 @@ def Months(season, condensed=False):
         month = entry.text.split('/')[0]
         if not month in months:
             months.append(month)
-            title = "%s Games" % calendar.month_name[int(month)]
+            title =  L(calendar.month_name[int(month)]) + L(" Games")
             oc.add(DirectoryObject(key=Callback(Games, season=season, month=month, condensed=condensed), title=title))
     return oc
 
@@ -388,10 +388,10 @@ def Games(season, month, condensed=False):
 
 @route(PREFIX + '/homeoraway')
 def HomeOrAway(url, title, summary, date):
-    oc = ObjectContainer(title2="Choose Feed")
+    oc = ObjectContainer(title2=L("Choose Feed"))
     date = Datetime.ParseDate(date).date()
-    oc.add(VideoClipObject(url=url+"#HOME", title="Home Feed", summary="%s\n%s" % (title, summary), originally_available_at=date))
-    oc.add(VideoClipObject(url=url+"#AWAY", title="Away Feed", summary="%s\n%s" % (title, summary), originally_available_at=date))
+    oc.add(VideoClipObject(url=url+"#HOME", title=L("Home Feed"), summary="%s\n%s" % (title, summary), originally_available_at=date))
+    oc.add(VideoClipObject(url=url+"#AWAY", title=L("Away Feed"), summary="%s\n%s" % (title, summary), originally_available_at=date))
     return oc
 
 @route(PREFIX + '/getxml', values=dict, cache_length=int)
@@ -426,7 +426,7 @@ def GetXML(url, values, cache_length=ONE_DAY):
             return xml_data
     if not xml_data:
         Log("Failed to retrieve requested XML.")
-        return ObjectContainer(header="Error", message="Failed to retrieve necessary data. Please confirm login credentials.")
+        return ObjectContainer(header=L("Error"), message=L("Failed to retrieve necessary data. Please confirm login credentials."))
 
 #Helpful code from the XBMC NHL-GameCenter Add-on#    
 '''
