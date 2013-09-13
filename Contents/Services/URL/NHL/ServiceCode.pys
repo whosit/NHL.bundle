@@ -33,7 +33,7 @@ def MetadataObjectForURL(url):
 	if Prefs['score_summary']:
 	    summary = "%s - %s %s" % (awayGoals, homeGoals, result)
 	else:
-	    summary = None
+	    summary = ''
 	if '#HOME' in url:
 		summary += "\nHome Feed"
 	elif '#AWAY' in url:
@@ -62,18 +62,22 @@ def MediaObjectsForURL(url):
 @indirect
 def PlayHLS(url):
 	game = GetXML(url).xpath('//game')[0]
-	values = GetValues(url)
 	if "#AWAY" in url:
+		Log.Debug('Find the "Away" feed.')
 		if '#CONDENSED' in url:
-			playpath = game.xpath('./awayCondensed/publishPoint')[0].text
+			Log.Debug('Find the "Condensed" feed.')
+			playpath = game.xpath('.//awayCondensed//publishPoint')[0].text
 		else:
-			playpath = game.xpath('./awayProgram/publishPoint')[0].text
-	if "#HOME" in url:
+			playpath = game.xpath('.//awayProgram//publishPoint')[0].text
+	elif "#HOME" in url:
+		Log.Debug('Find the "Home" feed.')
 		if '#CONDENSED' in url:
-			playpath = game.xpath('./homeCondensed/publishPoint')[0].text
+			Log.Debug('Find the "Condensed" feed.')
+			playpath = game.xpath('.//homeCondensed//publishPoint')[0].text
 		else:
-			playpath = game.xpath('./homeProgram/publishPoint')[0].text
+			playpath = game.xpath('.//homeProgram//publishPoint')[0].text
 	else:
+		Log.Debug('Find the first available feed.')
 		playpath = game.xpath('.//publishPoint')[0].text
 	try:
 		playpath_part1 = RE_PART_1.search(playpath).group(1)
@@ -82,7 +86,6 @@ def PlayHLS(url):
 		playpath_part1 = RE_PART_2.search(playpath).group(1)
 		m3u8_url = "http://nhl.cdn.neulion.net/%s/v1/playlist.m3u8" % (playpath_part1.rstrip('_pc'))
 		m3u8_url = m3u8_url.replace('/pc/', '/ced/')
-	Log(m3u8_url)
 	return IndirectResponse(VideoClipObject, key=m3u8_url)
 
 
@@ -109,7 +112,6 @@ def GetXML(url):
 		'Content-Type' : 'application/x-www-form-urlencoded'
 		}
         request = HTTP.Request(GAME_XML, headers=headers, values=values)
-	Log(request.content)
         xml_data = XML.ElementFromString(request.content.strip())
         return xml_data
 
