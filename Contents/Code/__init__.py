@@ -74,7 +74,7 @@ def LiveGames():
         gameTime    = game['bs']
         title = title = "%s at %s" % (awayTeam, homeTeam)
         summary = gameTime
-        if gameTime == "FINAL":
+        if "FINAL" in gameTime:
             if Prefs['score_summary']:
                 summary = "%s - %s %s" % (game['ats'], game['hts'], gameTime)
             oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
