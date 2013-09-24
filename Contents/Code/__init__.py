@@ -54,7 +54,7 @@ def ValidatePrefs():
 @handler(PREFIX, NAME)
 def MainMenu():    
     oc = ObjectContainer()
-    #oc.add(DirectoryObject(key=Callback(LiveGames), title="Live Games"))
+    oc.add(DirectoryObject(key=Callback(LiveGames), title="Live Games"))
     oc.add(DirectoryObject(key=Callback(ArchiveGames, condensed=True), title=L("Condensed Games")))
     oc.add(DirectoryObject(key=Callback(ArchiveGames), title=L("Archived Games")))
     oc.add(DirectoryObject(key=Callback(ClassicGames), title=L("Classic Games")))
