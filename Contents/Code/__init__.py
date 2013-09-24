@@ -7,6 +7,9 @@ Login = SharedCodeService.gamecenter.GCLogin
 ARCHIVE_XML     = 'http://gamecenter.nhl.com/nhlgc/servlets/allarchives'
 GAMES_XML       = 'http://gamecenter.nhl.com/nhlgc/servlets/archives'
 VAULT_XML       = 'http://nhl.cdn.neulion.net/u/nhlgc/flex/vault.xml'
+TODAY_GAMES     = 'http://live.nhle.com/GameData/GCScoreboard/%s.jsonp'
+
+GAME_URL        = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s'
 
 VAULT_NAMESPACES = {
     "xmlns"     :       "urn:schemas-microsoft-com:office:spreadsheet",
@@ -60,6 +63,29 @@ def MainMenu():
 
 @route(PREFIX + '/live')
 def LiveGames():
+    oc = ObjectContainer(title2=L("Live Games"))
+    today = Datetime.Now().date()
+    content = HTTP.Request(TODAY_GAMES % today).content
+    games_json = JSON.ObjectFromString(content.split('(',1)[1].split(')',1)[0])
+    for game in games_json:
+        game_id     = game['id']
+        homeTeam    = game['hta']
+        awayTeam    = game['ata']
+        gameTime    = game['bs']
+        title = title = "%s at %s" % (awayTeam, homeTeam)
+        summary = gameTime
+        if gameTime == "FINAL":
+            if Prefs['score_summary']:
+                summary = "%s - %s %s" % (game['ats'], game['hts'], gameTime)
+            oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
+        else:
+            summary = summary + "ET"
+            ''' handle games which are just starting and those that have been running a while but not ended '''
+            oc.add(DirectoryObject(key=Callback(CheckLive, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
+    return oc
+
+@route(PREIX + '/checklive')
+def CheckLive(url, title, summary, date):
     return
 
 @route(PREFIX + '/archive', condensed=bool)
@@ -376,7 +402,8 @@ def Games(season, month, condensed=False):
         result = game.xpath("./result")[0].text
         
         title = "%s at %s - %s" % (awayTeam, homeTeam, date)
-        url = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s0%s%s' % (season, gctype, game_id)
+        full_game_id = '%s0%s%s' % (season, gctype, game_id)
+        url = GAME_URL % full_game_id
         if condensed:
             url = url + "#CONDENSED"
         if Prefs['score_summary']:
