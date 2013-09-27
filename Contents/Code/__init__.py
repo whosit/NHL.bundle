@@ -84,7 +84,7 @@ def LiveGames():
             oc.add(DirectoryObject(key=Callback(CheckLive, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
     return oc
 
-@route(PREIX + '/checklive')
+@route(PREFIX + '/checklive')
 def CheckLive(url, title, summary, date):
     return
 
