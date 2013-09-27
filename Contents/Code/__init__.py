@@ -66,22 +66,26 @@ def LiveGames():
     oc = ObjectContainer(title2=L("Live Games"))
     today = Datetime.Now().date()
     content = HTTP.Request(TODAY_GAMES % today).content
-    games_json = JSON.ObjectFromString(content.split('(',1)[1].split(')',1)[0])
-    for game in games_json:
+    # we need to clean the string before parsing it as json
+    json_string = content.split('(',1)[1].split(')',1)[0]
+    Log.Debug(json_string)
+    games_json = JSON.ObjectFromString(json_string)
+    for game in games_json['games']:
         game_id     = game['id']
+	url = GAME_URL % game_id
         homeTeam    = game['hta']
         awayTeam    = game['ata']
         gameTime    = game['bs']
         title = title = "%s at %s" % (awayTeam, homeTeam)
-        summary = gameTime
+	summary = ""
         if "FINAL" in gameTime:
             if Prefs['score_summary']:
                 summary = "%s - %s %s" % (game['ats'], game['hts'], gameTime)
-            oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
+            oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=today), title=title, summary=summary))
         else:
-            summary = summary + "ET"
+            title = "%s %s ET" % (title, gameTime)
             ''' handle games which are just starting and those that have been running a while but not ended '''
-            oc.add(DirectoryObject(key=Callback(CheckLive, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
+            oc.add(DirectoryObject(key=Callback(CheckLive, url=url, title=title, summary=summary, date=today), title=title, summary=summary))
     return oc
 
 @route(PREFIX + '/checklive')
