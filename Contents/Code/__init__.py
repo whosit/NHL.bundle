@@ -76,7 +76,7 @@ def ArchiveGames(condensed=False):
         if int(season) < 2010:
             ''' links for seasons older than this don't work, so we'll ignore them '''
             continue
-        oc.add(DirectoryObject(key=Callback(Months, season=season), title=season + L(" Season")))
+        oc.add(DirectoryObject(key=Callback(Months, season=season, condensed=condensed), title=season + L(" Season")))
     return oc
 
 @route(PREFIX + '/classic')
