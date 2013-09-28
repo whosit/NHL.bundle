@@ -99,7 +99,7 @@ def ArchiveGames(condensed=False):
     seasons = data.xpath('//season')
     seasons.reverse()
     current_season = seasons[0].get('id')
-    current_month = seasons[0].xpath('./g')[-1].text.split('/')[0]
+    current_month = Datetime.Now().month
     oc.add(DirectoryObject(key=Callback(Games, season=current_season, month=current_month, condensed=condensed), title=L("Most Recent Games")))
     for entry in seasons:
         season = entry.get('id')
