@@ -383,7 +383,10 @@ def Months(season, condensed=False):
             months.append(month)
             title =  L(calendar.month_name[int(month)]) + L(" Games")
             oc.add(DirectoryObject(key=Callback(Games, season=season, month=month, condensed=condensed), title=title))
-    return oc
+    if len(oc) < 1:
+	return ObjectContainer(header=L("Empty"), message=L("No content found."))
+    else:
+	return oc
 
 @route(PREFIX + '/games', condensed=bool)
 def Games(season, month, condensed=False):
@@ -415,7 +418,10 @@ def Games(season, month, condensed=False):
         else:
             summary = None
         oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
-    return oc
+    if len(oc) < 1:
+	return ObjectContainer(header=L("Empty"), message=L("No content found."))
+    else:
+	return oc
 
 @route(PREFIX + '/homeoraway')
 def HomeOrAway(url, title, summary, date):
