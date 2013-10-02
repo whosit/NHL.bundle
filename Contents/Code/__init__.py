@@ -462,4 +462,3 @@ def GetXML(url, values, cache_length=ONE_DAY):
     if not xml_data:
         Log("Failed to retrieve requested XML.")
         return ObjectContainer(header=L("Error"), message=L("Failed to retrieve necessary data. Please confirm login credentials."))
-
