@@ -1,8 +1,12 @@
 from gamecenter import GCLogin as Login
 
 RE_GAME = Regex('\?id=(?P<season>[0-9]{4})(?P<gtype>[0-9]{2})(?P<game_id>[0-9]{4})')
+RE_GID	= Regex('\?id=([0-9]{10})')
+RE_LIVE_M3U8 	= Regex('(http:\/\/.+?\.neulion\.com\/nlds\/nhl\/.+?\/as\/live\/.+?_hd_ced\.m3u8)')
 
 GAME_XML = 'http://gamecenter.nhl.com/nhlgc/servlets/game'
+TODAY_GAMES     = 'http://live.nhle.com/GameData/GCScoreboard/%s.jsonp'
+LIVE_GAMES	= 'http://cedrss.neulion.com/nhlgc/archives/?live=true&user=%s&pass=%s' # username, password
 
 RE_PART_1 = Regex('(nlds_vod/nhl/vod/.+)\.mp4')
 RE_PART_2 = Regex('(./nhlmobile/vod/nhl/.+)\.mp4')
@@ -51,12 +55,20 @@ def MetadataObjectForURL(url):
 
 ####################################################################################################
 def MediaObjectsForURL(url):
-	return [
+	if "#LIVE" in url:
+		return [
 		MediaObject(
-			parts=[PartObject(key=HTTPLiveStreamURL(Callback(PlayHLS, url=url)))],
+			parts=[PartObject(key=HTTPLiveStreamURL(Callback(PlayLive, url=url)))],
 			video_resolution = 720
 		)
 	]
+	else:
+		return [
+			MediaObject(
+				parts=[PartObject(key=HTTPLiveStreamURL(Callback(PlayHLS, url=url)))],
+				video_resolution = 720
+			)
+		]
 
 ####################################################################################################
 @indirect
@@ -92,6 +104,38 @@ def PlayHLS(url):
 		m3u8_url = m3u8_url.replace('/pc/', '/ced/')
 	return IndirectResponse(VideoClipObject, key=m3u8_url)
 
+####################################################################################################
+@indirect
+def PlayLive(url):
+	today = Datetime.Now().date()
+	content = HTTP.Request(TODAY_GAMES % today).content
+	# we need to clean the string before parsing it as json
+	json_string = content.split('(',1)[1].split(')',1)[0]
+	games_json = JSON.ObjectFromString(json_string)
+	game_id = RE_GID.search(url).group(1)
+	live_games = RE_LIVE_M3U8.findall(HTTP.Request(LIVE_GAMES % (Prefs['gc_username'], Prefs['gc_password'])).content)
+	for game in games_json['games']:
+		if str(game_id) == str(game['id']):
+			Log.Debug("Found our game")
+			if "#AWAY" in url:
+				Log.Debug('Find the "Away" feed.')
+				team_name = (game['atcommon']).lower()
+				
+			elif "#HOME" in url:
+				Log.Debug('Find the "Home" feed.')
+				team_name = (game['htcommon']).lower()
+			else:
+				Log.Debug('Find the first available feed.')
+				Log.Debug('Hopefully the "Home" feed will work.')
+				team_name = (game['htcommon']).lower()
+	Log.Debug("Looking for %s feed" % team_name)
+	for url in live_games:
+		if team_name in url:
+			m3u8_url = url
+		else:
+			continue
+	
+	return IndirectResponse(VideoClipObject, key=m3u8_url)
 
 ####################################################################################################
 def GetValues(url):

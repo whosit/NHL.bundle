@@ -7,6 +7,9 @@ Login = SharedCodeService.gamecenter.GCLogin
 ARCHIVE_XML     = 'http://gamecenter.nhl.com/nhlgc/servlets/allarchives'
 GAMES_XML       = 'http://gamecenter.nhl.com/nhlgc/servlets/archives'
 VAULT_XML       = 'http://nhl.cdn.neulion.net/u/nhlgc/flex/vault.xml'
+TODAY_GAMES     = 'http://live.nhle.com/GameData/GCScoreboard/%s.jsonp'
+
+GAME_URL        = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s'
 
 VAULT_NAMESPACES = {
     "xmlns"     :       "urn:schemas-microsoft-com:office:spreadsheet",
@@ -51,7 +54,7 @@ def ValidatePrefs():
 @handler(PREFIX, NAME)
 def MainMenu():    
     oc = ObjectContainer()
-    #oc.add(DirectoryObject(key=Callback(LiveGames), title="Live Games"))
+    oc.add(DirectoryObject(key=Callback(LiveGames), title="Live Games"))
     oc.add(DirectoryObject(key=Callback(ArchiveGames, condensed=True), title=L("Condensed Games")))
     oc.add(DirectoryObject(key=Callback(ArchiveGames), title=L("Archived Games")))
     oc.add(DirectoryObject(key=Callback(ClassicGames), title=L("Classic Games")))
@@ -60,7 +63,30 @@ def MainMenu():
 
 @route(PREFIX + '/live')
 def LiveGames():
-    return
+    oc = ObjectContainer(title2=L("Live Games"), no_cache=True)
+    today = Datetime.Now().date()
+    content = HTTP.Request(TODAY_GAMES % today).content
+    # we need to clean the string before parsing it as json
+    json_string = content.split('(',1)[1].split(')',1)[0]
+    games_json = JSON.ObjectFromString(json_string)
+    for game in games_json['games']:
+        game_id     = game['id']
+	url = GAME_URL % game_id
+        homeTeam    = game['hta']
+        awayTeam    = game['ata']
+        gameTime    = game['bs']
+        title = title = "%s at %s" % (awayTeam, homeTeam)
+	summary = ""
+        if game['bsc'] == "final":
+            if Prefs['score_summary']:
+                summary = "%s - %s %s" % (game['ats'], game['hts'], gameTime)
+	    title = title + " FINAL"
+            oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=today), title=title, summary=summary))
+        elif game['bsc'] in ["progress","critical"]:
+            title = "%s %s ET" % (title, gameTime)
+            ''' handle games which are just starting and those that have been running a while but not ended '''
+            oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url+"#LIVE", title=title, summary=summary, date=today), title=title, summary=summary))
+    return oc
 
 @route(PREFIX + '/archive', condensed=bool)
 def ArchiveGames(condensed=False):
@@ -379,7 +405,8 @@ def Games(season, month, condensed=False):
         result = game.xpath("./result")[0].text
         
         title = "%s at %s - %s" % (awayTeam, homeTeam, date)
-        url = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s0%s%s' % (season, gctype, game_id)
+        full_game_id = '%s0%s%s' % (season, gctype, game_id)
+        url = GAME_URL % full_game_id
         if condensed:
             url = url + "#CONDENSED"
         if Prefs['score_summary']:
@@ -396,6 +423,8 @@ def Games(season, month, condensed=False):
 def HomeOrAway(url, title, summary, date):
     oc = ObjectContainer(title2=L("Choose Feed"))
     date = Datetime.ParseDate(date).date()
+    if summary == "None":
+	summary = ""
     oc.add(VideoClipObject(url=url+"#HOME", title=L("Home Feed"), summary="%s\n%s" % (title, summary), originally_available_at=date))
     oc.add(VideoClipObject(url=url+"#AWAY", title=L("Away Feed"), summary="%s\n%s" % (title, summary), originally_available_at=date))
     return oc
