@@ -63,12 +63,11 @@ def MainMenu():
 
 @route(PREFIX + '/live')
 def LiveGames():
-    oc = ObjectContainer(title2=L("Live Games"))
+    oc = ObjectContainer(title2=L("Live Games"), no_cache=True)
     today = Datetime.Now().date()
     content = HTTP.Request(TODAY_GAMES % today).content
     # we need to clean the string before parsing it as json
     json_string = content.split('(',1)[1].split(')',1)[0]
-    Log.Debug(json_string)
     games_json = JSON.ObjectFromString(json_string)
     for game in games_json['games']:
         game_id     = game['id']
@@ -78,19 +77,16 @@ def LiveGames():
         gameTime    = game['bs']
         title = title = "%s at %s" % (awayTeam, homeTeam)
 	summary = ""
-        if "FINAL" in gameTime:
+        if game['bsc'] == "final":
             if Prefs['score_summary']:
                 summary = "%s - %s %s" % (game['ats'], game['hts'], gameTime)
+	    title = title + " FINAL"
             oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=today), title=title, summary=summary))
-        else:
+        elif game['bsc'] in ["progress","critical"]:
             title = "%s %s ET" % (title, gameTime)
             ''' handle games which are just starting and those that have been running a while but not ended '''
-            oc.add(DirectoryObject(key=Callback(CheckLive, url=url, title=title, summary=summary, date=today), title=title, summary=summary))
+            oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url+"#LIVE", title=title, summary=summary, date=today), title=title, summary=summary))
     return oc
-
-@route(PREFIX + '/checklive')
-def CheckLive(url, title, summary, date):
-    return
 
 @route(PREFIX + '/archive', condensed=bool)
 def ArchiveGames(condensed=False):
@@ -427,6 +423,8 @@ def Games(season, month, condensed=False):
 def HomeOrAway(url, title, summary, date):
     oc = ObjectContainer(title2=L("Choose Feed"))
     date = Datetime.ParseDate(date).date()
+    if summary == "None":
+	summary = ""
     oc.add(VideoClipObject(url=url+"#HOME", title=L("Home Feed"), summary="%s\n%s" % (title, summary), originally_available_at=date))
     oc.add(VideoClipObject(url=url+"#AWAY", title=L("Away Feed"), summary="%s\n%s" % (title, summary), originally_available_at=date))
     return oc
