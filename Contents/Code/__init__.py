@@ -61,11 +61,15 @@ def MainMenu():
     oc.add(PrefsObject(title=L("Preferences")))
     return oc
 
+
 @route(PREFIX + '/live')
-def LiveGames():
-    oc = ObjectContainer(title2=L("Live Games"), no_cache=True)
-    today = Datetime.Now().date()
-    content = HTTP.Request(TODAY_GAMES % today).content
+def LiveGames(date=None):
+    if date:
+	oc = ObjectContainer(title1=L("Recent Games"), title2=date)
+    else:
+	oc = ObjectContainer(title2=L("Live Games"), no_cache=True)
+	date = Datetime.Now().date()
+    content = HTTP.Request(TODAY_GAMES % date).content
     # we need to clean the string before parsing it as json
     json_string = content.split('(',1)[1].split(')',1)[0]
     games_json = JSON.ObjectFromString(json_string)
@@ -81,11 +85,11 @@ def LiveGames():
             if Prefs['score_summary']:
                 summary = "%s - %s %s" % (game['ats'], game['hts'], gameTime)
 	    title = title + " FINAL"
-            oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=today), title=title, summary=summary))
+            oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
         elif game['bsc'] in ["progress","critical"]:
             title = "%s %s ET" % (title, gameTime)
             ''' handle games which are just starting and those that have been running a while but not ended '''
-            oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url+"#LIVE", title=title, summary=summary, date=today), title=title, summary=summary))
+            oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url+"#LIVE", title=title, summary=summary, date=date), title=title, summary=summary))
     return oc
 
 @route(PREFIX + '/archive', condensed=bool)
@@ -96,13 +100,27 @@ def ArchiveGames(condensed=False):
     seasons.reverse()
     current_season = seasons[0].get('id')
     current_month = Datetime.Now().month
-    oc.add(DirectoryObject(key=Callback(Games, season=current_season, month=current_month, condensed=condensed), title=L("Most Recent Games")))
+    if condensed:
+	oc.add(DirectoryObject(key=Callback(Games, season=current_season, month=current_month, condensed=condensed), title=L("Most Recent Games")))
+    else:
+	oc.add(DirectoryObject(key=Callback(RecentGames), title=L("Most Recent Games")))
     for entry in seasons:
         season = entry.get('id')
         if int(season) < 2010:
             ''' links for seasons older than this don't work, so we'll ignore them '''
             continue
         oc.add(DirectoryObject(key=Callback(Months, season=season, condensed=condensed), title=season + L(" Season")))
+    return oc
+
+@route(PREFIX + '/recent')
+def RecentGames():
+    oc = ObjectContainer(title2=L("Recent Games"))
+    i = 0
+    while i < 7:
+	game_date = str(Datetime.Now().date() - Datetime.Delta(days=i))
+	Log(game_date)
+	oc.add(DirectoryObject(key=Callback(LiveGames, date=game_date), title=game_date))
+	i += 1
     return oc
 
 @route(PREFIX + '/classic')

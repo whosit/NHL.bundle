@@ -74,6 +74,13 @@ def MediaObjectsForURL(url):
 @indirect
 def PlayHLS(url):
 	game = GetXML(url).xpath('//game')[0]
+	playpath = None
+	try:
+		blocked = game.xpath('.//blocked')[0].text
+		if blocked == 'true':
+			raise Ex.MediaGeoblocked
+	except:
+		Log.Debug("Doesn't look like were in a Black-Out region.")
 	if "#AWAY" in url:
 		Log.Debug('Find the "Away" feed.')
 		if '#CONDENSED' in url:
@@ -81,12 +88,16 @@ def PlayHLS(url):
 			try: playpath = game.xpath('.//awayCondensed//publishPoint')[0].text
 			except:
 				try: playpath = game.xpath('.//condensed//publishPoint')[0].text
-				except: playpath = game.xpath('.//frCondensed//publishPoint')[0].text
+				except:
+					try: playpath = game.xpath('.//frCondensed//publishPoint')[0].text
+					except: Log.Debug('Failed to find the Away-Condensed feed.')
 		else:
 			try: playpath = game.xpath('.//awayProgram//publishPoint')[0].text
 			except:
 				try: playpath = game.xpath('.//program//publishPoint')[0].text
-				except: playpath = game.xpath('.//frProgram//publishPoint')[0].text
+				except:
+					try: playpath = game.xpath('.//frProgram//publishPoint')[0].text
+					except: Log.Debug('Failed to find the Away-Whole feed.')
 	elif "#HOME" in url:
 		Log.Debug('Find the "Home" feed.')
 		if '#CONDENSED' in url:
@@ -94,15 +105,53 @@ def PlayHLS(url):
 			try: playpath = game.xpath('.//homeCondensed//publishPoint')[0].text
 			except:
 				try: playpath = game.xpath('.//condensed//publishPoint')[0].text
-				except: playpath = game.xpath('.//frCondensed//publishPoint')[0].text
+				except:
+					try: playpath = game.xpath('.//frCondensed//publishPoint')[0].text
+					except: Log.Debug('Failed to find the Home-Condensed feed.')
 		else:
 			try: playpath = game.xpath('.//homeProgram//publishPoint')[0].text
 			except:
 				try: playpath = game.xpath('.//program//publishPoint')[0].text
-				except: playpath = game.xpath('.//frProgram//publishPoint')[0].text
-	else:
+				except:
+					try: playpath = game.xpath('.//frProgram//publishPoint')[0].text
+					except: Log.Debug('Failed to find the Home-Whole feed.')
+	if not playpath:
+		# something is preventing us from grabbing the proper feed
 		Log.Debug('Find the first available feed.')
-		playpath = game.xpath('.//publishPoint')[0].text
+		try:	playpath = game.xpath('.//publishPoint')[0].text
+		except:	Log.Debug('No feed found. Probably blacked out.')
+		if playpath:
+			Log.Debug('Found a feed. Using it.')
+			# try to grab the appropriate feed
+			if "#AWAY" in url:	playpath = playpath.replace('_h_','_a_')
+			elif "#HOME" in url:	playpath = playpath.replace('_a_','_h_')
+			else: 			pass
+		
+			if '#CONDENSED' in url:	playpath = playpath.replace('_whole_','_condensed_')
+			else:			playpath = playpath.replace('_condensed_','_whole_')
+		else:
+			# try to build the url on our own (2013-2014 season anyway)
+			Log.Debug('Try to build our own feed url.')
+			game_date = Datetime.ParseDate(game.xpath('.//date')[0].text).date()
+			year = game_date.year
+			month = game_date.month
+			day = game_date.day
+			if len(str(day)) < 2:
+				day = '0%s' % day
+			gid = (game.xpath('.//gid')[0].text).lstrip('0')
+			gtype = (game.xpath('.//type')[0].text).lstrip('0')
+			awayTeam = (game.xpath('.//awayTeam')[0].text).lower()
+			homeTeam = (game.xpath('.//homeTeam')[0].text).lower()
+			if "#AWAY" in url:
+				home = 'a'
+			else:
+				home = 'h'
+			if "#CONDENSED" in url:
+				whole = 'condensed'
+			else:
+				whole = 'whole'
+			playpath = "adaptive://nlds150.neulion.com/nlds_vod/nhl/vod/%s/%s/%s/%s/%s_%s_%s_%s_1314_%s_%s_1_pc.mp4" % (year, month, day, gid, gtype, gid, awayTeam, homeTeam, home, whole)
+	
 	try:
 		playpath_part1 = RE_PART_1.search(playpath).group(1)
 		m3u8_url = "http://nlds150.neulion.com/%s_ced.mp4.m3u8" % (playpath_part1.rstrip('_pc'))
@@ -168,7 +217,6 @@ def GetXML(url):
 		'Content-Type' : 'application/x-www-form-urlencoded'
 		}
         request = HTTP.Request(GAME_XML, headers=headers, values=values)
-	Log(request.content.strip())
         xml_data = XML.ElementFromString(request.content.strip())
         return xml_data
 
