@@ -187,7 +187,7 @@ def PlayLive(url):
 				team_name = (game['htcommon']).lower()
 	Log.Debug("Looking for %s feed" % team_name)
 	for url in live_games:
-		if team_name in url:
+		if team_name in url or team_name.replace(" ", "") in url:
 			m3u8_url = url
 		else:
 			continue
