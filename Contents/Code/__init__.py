@@ -80,7 +80,7 @@ def LiveGames(date=None):
         awayTeam    = game['ata']
         gameTime    = game['bs']
         title = title = "%s at %s" % (awayTeam, homeTeam)
-	summary = ""
+	summary = " "
         if game['bsc'] == "final":
             if Prefs['score_summary']:
                 summary = "%s - %s %s" % (game['ats'], game['hts'], gameTime)
@@ -430,7 +430,7 @@ def Games(season, month, condensed=False):
         if Prefs['score_summary']:
             summary = "%s - %s %s" % (awayGoals, homeGoals, result)
         else:
-            summary = None
+            summary = " "
         oc.add(DirectoryObject(key=Callback(HomeOrAway, url=url, title=title, summary=summary, date=date), title=title, summary=summary))
     if len(oc) < 1:
 	return ObjectContainer(header=L("Empty"), message=L("No content found."))
@@ -442,7 +442,7 @@ def HomeOrAway(url, title, summary, date):
     oc = ObjectContainer(title2=L("Choose Feed"))
     date = Datetime.ParseDate(date).date()
     if summary == "None":
-	summary = ""
+	summary = " "
     oc.add(VideoClipObject(url=url+"#HOME", title=L("Home Feed"), summary="%s\n%s" % (title, summary), originally_available_at=date))
     oc.add(VideoClipObject(url=url+"#AWAY", title=L("Away Feed"), summary="%s\n%s" % (title, summary), originally_available_at=date))
     return oc
