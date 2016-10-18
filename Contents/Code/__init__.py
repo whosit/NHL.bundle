@@ -9,7 +9,8 @@ GAMES_XML       = 'http://gamecenter.nhl.com/nhlgc/servlets/archives'
 VAULT_XML       = 'http://nhl.cdn.neulion.net/u/nhlgc/flex/vault.xml'
 TODAY_GAMES     = 'http://live.nhle.com/GameData/GCScoreboard/%s.jsonp'
 
-GAME_URL        = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s'
+#GAME_URL        = 'http://www.nhl.com/ice/gamecenterlive.htm?id=%s'
+GAME_URL        = 'https://www.nhl.com/tv/%s'
 
 VAULT_NAMESPACES = {
     "xmlns"     :       "urn:schemas-microsoft-com:office:spreadsheet",
